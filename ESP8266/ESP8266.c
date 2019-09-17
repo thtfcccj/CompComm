@@ -60,7 +60,7 @@ void ESP8266_Init(struct _UsartDev *pUsartDev, //已初始化完成的底层设备
   pESP8266 = MemMng_pvMalloc(sizeof(struct _ESP8266));
   memset(pESP8266, 0, sizeof(struct _ESP8266));
   //初始化相关
-  pESP8266->Flag = CwMode; 
+  pESP8266->Flag = CwMode;
   pESP8266->PreMode = PreMode; 
   AtUsart_Init(&pESP8266->AtUsart, pUsartDev, DevId, 0); //自动得到串口
   AtUsart_CfgSend(&pESP8266->AtUsart, ESP8266_WR_BUF_SIZE, 
@@ -112,7 +112,10 @@ static void _InitModeWr(void)
   if(pESP8266->ModeState == 2)//配置工作模式
     pCmd = _pSetCWMODE[pESP8266->Flag & ESP8266_CWMODE_MASK];
   else pCmd = _pInitStr[pESP8266->ModeState];
-  AtCmd_RwAtStart(&pESP8266->AtUsart, pCmd); 
+  unsigned char RdCfg;
+  if(pESP8266->ModeState == 0) RdCfg = AT_USART_RCV_DIS_ALL; //复位时字符不定有前导
+  else RdCfg = 0; 
+  AtCmd_RwAtStart(&pESP8266->AtUsart, pCmd, RdCfg); 
   pESP8266->Flag |= ESP8266_RD_WAIT;
   if(pESP8266->ModeState == 0) pESP8266->Timer = 80; //复位时要慢些
   else pESP8266->Timer = 8;// 1s为单位
@@ -151,7 +154,7 @@ static void _InitModeRd(void)
   
   //复位成功时，返回字符串为设备信息
   if(pESP8266->ModeState == 0){//这里只检查长度
-    if(RcvSize >= 6) pESP8266->ModeState = 1;
+    if(RcvSize >= 100) pESP8266->ModeState = 1;
   }
   //ATE0返回OK成功
   else if((pESP8266->ModeState == 1)){
@@ -163,24 +166,24 @@ static void _InitModeRd(void)
   //写模式成功返回OK
   else if((pESP8266->ModeState == 2)){
     if(_IsOk(pStr)){
-      if((pESP8266->Flag & ESP8266_CWMODE_MASK) == 2){//AP模式初始化完成
+      unsigned char CmMode = pESP8266->Flag & ESP8266_CWMODE_MASK;
+      if(CmMode >= 2)//AP模式初始化完成
         pESP8266->Flag |= ESP8266_AP_RDY;
+      if(CmMode == 2){//AP模式强致到配置模式
         pESP8266->CurMode = ESP8266_MODE_CFG;
-        pESP8266->ModeState = 0;
         return;
       }
-      if((pESP8266->Flag & ESP8266_CWMODE_MASK) == 3)//双模式
-        pESP8266->Flag |= ESP8266_AP_RDY;
-      pESP8266->ModeState = 3;
+      //其它含STA模式，继续
+      pESP8266->ModeState = 3; 
     }
   }
   //返回IP信息(同时WIFI成功)
   else if((pESP8266->ModeState == 3)){
     if(RcvSize >= 10){//IP成功了,进入配置模式
       pESP8266->Flag |= ESP8266_WIFI_RDY;
-        pESP8266->CurMode = ESP8266_MODE_CFG;
-        pESP8266->ModeState = 0;  
-        return;
+      pESP8266->CurMode = ESP8266_MODE_CFG;
+      pESP8266->ModeState = 0;  
+      return;
     }
     else pESP8266->ModeState = 4;//进入配网状态
   }
@@ -201,6 +204,7 @@ static void _InitModeRd(void)
 void ESP8266_Task(void)
 {
   if(pESP8266 == NULL) return; //未挂接
+  
   if((pESP8266->Flag & ESP8266_CWMODE_MASK) == 0) return;//关闭时不处理
   
   //接收等待中 
@@ -221,5 +225,19 @@ void ESP8266_Task(void)
 /******************************************************************************
 		                          配置模式相关
 ******************************************************************************/
+#include "UsartMng.h"
+//----------------------接收到有效超始字符后通报函数----------------------------
+//可用于点亮接收指示灯
+void AtUsart_cbRcvValidNotify(unsigned char DevId)//设备ID号
+{
+  UsartMng_cbSetLight(DevId);
+}
+
+//--------------------------------接收结束通报函数------------------------------
+//可用于关闭接收指示灯
+void AtUsart_cbRcvEndNotify(unsigned char DevId)//设备ID号
+{
+  UsartMng_cbClrLight(DevId);   
+}
 
 

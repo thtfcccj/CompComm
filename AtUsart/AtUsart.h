@@ -4,7 +4,7 @@
 1. 此模块建在AT(或类AT)指令模块与底层UsartDev之间,实现其双向通讯
 2. 标准AT指令格式为:
      发送:“AT....<CR>” 
-    接收:“<CR><LF><response><CR><LF>”
+    接收:“<CR><LF><response><CR><LF>” ,其中前后导可配置为滤波(不占缓冲区)
 3. 此模块实现为多例化以同时支持不同AT指令
 4. 支持半大工状态,此状态下，可共用接收缓冲区
 5. 支持阻塞操作。
@@ -80,6 +80,8 @@ struct _AtUsart{
 #define AT_USART_RCV_DIS_ECR     0x20     //不自动识别后导字符"<CR>"
 #define AT_USART_RCV_DIS_ELF     0x10     //不自动识别后导字符"<LF>"
 #define AT_USART_RCV_DIS_ALL     0xF0    //不自动加所有前后导字符(可实现全接收)
+#define AT_USART_RCV_DIS_START   0xC0     //不自动识别前导所有字符掩码
+#define AT_USART_RCV_DIS_END     0x30     //不自动识别后导所有字符掩码
 //控制相关:
 #define AT_USART_RCV_ALL_MODE           0x08   //标识在所有字接收状态
   
@@ -142,7 +144,8 @@ void AtUsart_SendBuf(struct _AtUsart *pAtUsart, unsigned short SendLen);
 //强制停止发送数据
 void AtUsart_SendStop(struct _AtUsart *pAtUsart);
 //是否完成,用于阻塞操作时查询
-signed char  AtUsart_IsSendFinal(const struct _AtUsart *pAtUsart);
+#define AtUsart_IsSendFinal(atUsart) \
+  ((pAtUsart->SendFlag & AT_USART_SEND_STATE_MASK) == AT_USART_SEND_STATE_FINAL)
 //置自动接收
 #define AtUsart_EnWrAutoRcv(atUsart) do{(atUsart)->Flag |= AT_USART_WR_AUTO_RCV;}while(0) 
 //取消自动接收
@@ -160,14 +163,15 @@ void AtUsart_RcvStart(struct _AtUsart *pAtUsart);
 void AtUsart_RcvStop(struct _AtUsart *pAtUsart);
 
 //得到接收缓冲区,带前导时，将自动从前导后开始
-const unsigned char *AtUsart_pGetRcvBuf(const struct _AtUsart *pAtUsart);
-//得到接收缓冲区大小,带前后缀时，将排除
-unsigned short AtUsart_GetRcvCount(const struct _AtUsart *pAtUsart);
+#define AtUsart_pGetRcvBuf(atUsart)  ((atUsart)->Rcv.pBuf)
+//得到接收缓冲区大小
+#define AtUsart_GetRcvCount(atUsart)  ((atUsart)->Rcv.Count)
 //数据正确时，得到接收到的数据大小
-unsigned short AtUsart_GetRcvSize(const struct _AtUsart *pAtUsart);
+#define AtUsart_GetRcvSize(atUsart)  ((atUsart)->Rcv.Len)
 //是否完成,用于阻塞操作时查询
-signed char  AtUsart_IsRcvFinal(const struct _AtUsart *pAtUsart);
-
+#define AtUsart_IsRcvFinal(atUsart)\
+  ((pAtUsart->RcvFlag & AT_USART_RCV_STATE_MASK) == AT_USART_RCV_STATE_FINAL)
+    
 /******************************************************************************
 		                          回调函数
 ******************************************************************************/
@@ -203,13 +207,13 @@ signed char  AtUsart_IsRcvFinal(const struct _AtUsart *pAtUsart);
 
 //----------------------接收到有效超始字符后通报函数----------------------------
 //可用于点亮接收指示灯
-//void AtUsart_cbRcvValidNotify(unsigned char DevId);//设备ID号
-#define AtUsart_cbRcvValidNotify(devId) do{}while(0) //不启用时
+void AtUsart_cbRcvValidNotify(unsigned char DevId);//设备ID号
+//#define AtUsart_cbRcvValidNotify(devId) do{}while(0) //不启用时
 
 //--------------------------------接收结束通报函数------------------------------
 //可用于关闭接收指示灯
-//void AtUsart_cbRcvEndNotify(unsigned char DevId);//设备ID号
-#define AtUsart_cbRcvEndNotify(devId) do{}while(0) //不启用时
+void AtUsart_cbRcvEndNotify(unsigned char DevId);//设备ID号
+//#define AtUsart_cbRcvEndNotify(devId) do{}while(0) //不启用时
 
 #endif
 

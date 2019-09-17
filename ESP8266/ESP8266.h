@@ -61,9 +61,9 @@ struct _ESP8266{
   //ModeState=4: 发送"AT+CWSMARTSTART=2"转入智能配网模式，等待用户接下WIFI，转至5
   //             (手机配网：手机微信上搜索“安信可科技” 点击wifi配置)
   //ModeState=5: 守候接收，用户配置后，将接收到“OK”开始字符，置ESP8266_WIFI_RDY转至配置模式
-#define ESP8266_MODE_CFG                1     //命令配置模式(其它模式退出时)等待
+#define ESP8266_MODE_CFG                0     //命令配置模式(其它模式退出时)等待
 
-#define ESP8266_MODE_TCP_PASS_LOCAL     2     //本地TCP透传模式,即跟网域网内设备相连
+#define ESP8266_MODE_TCP_PASS_LOCAL     1     //本地TCP透传模式,即跟局域网内设备相连
   //1在本地电脑做好TCP/IP转串口服务器
   //ModeState=0: 发送"AT+CIPSTART="TCP","LocalIp4.LocalIp3.LocalIp2.485地址",10002"指令
   //成功返回CONNECT，转到1
@@ -89,6 +89,11 @@ void ESP8266_Init(struct _UsartDev *pUsartDev, //已初始化完成的底层设备
                   unsigned char DevId,         //设备挂载的ID号
                   unsigned char CwMode,       //ESP8266工作模式,0关,1:STA 2:AP 3:AP+STA
                   unsigned char PreMode);     //本模块预置的工作模式
+
+//---------------------------1ms硬件调用任务函数---------------------------------
+//放在硬件定时器中
+#define ESP8266_1msHwTask() \
+  do{if(pESP8266 != NULL){AtUsart_1msHwTask(&pESP8266->AtUsart);}}while(0)
 
 //---------------------------进入某个模式---------------------------------
 void ESP8266_ModeEnter(unsigned char Mode);

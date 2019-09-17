@@ -58,11 +58,12 @@ void AtCmd_RdAtStart(struct _AtUsart *pAtUsart)
 //-----------------------------启动写后自动读AT函数-----------------------------
 //非阻塞方式工作，启动后即返回
 void AtCmd_RwAtStart(struct _AtUsart *pAtUsart,
-                     const char *pCmd)  //写命令,不含AT开始与结束字符
+                     const char *pCmd,  //写命令,不含AT开始与结束字符
+                     unsigned char Cfg)//AtUsart定义的读配置
 {
   //配置接收
   AtUsart_EnWrAutoRcv(pAtUsart);         //允许自动接收
-  AtUsart_RcvCfg(pAtUsart, 0);            //标准AT模式
+  AtUsart_RcvCfg(pAtUsart, Cfg);
   AtUsart_SetRcvWaitOv(pAtUsart, AT_CMD_BLOCKING_RD_WAIT_OV); 
   AtUsart_SetRcvDoingOv(pAtUsart, AT_CMD_BLOCKING_RD_DOING_OV); 
   //启动发送

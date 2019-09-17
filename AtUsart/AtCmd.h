@@ -13,12 +13,12 @@
 
 //阻塞方式工作时，默认读等待时间,ms为单位
 #ifndef AT_CMD_BLOCKING_RD_WAIT 
-  #define AT_CMD_BLOCKING_RD_WAIT_OV 50
+  #define AT_CMD_BLOCKING_RD_WAIT_OV   800
 #endif
 
 //阻塞方式工作时，默认读数据间停止时间,ms为单位
 #ifndef AT_CMD_BLOCKING_RD_WAIT 
-  #define AT_CMD_BLOCKING_RD_DOING_OV   10
+  #define AT_CMD_BLOCKING_RD_DOING_OV   800
 #endif
 
 #include "AtUsart.h"
@@ -52,7 +52,8 @@ void AtCmd_RdAtStart(struct _AtUsart *pAtUsart);
 //-----------------------------启动写后自动读AT函数-----------------------------
 //非阻塞方式工作，启动后即返回
 void AtCmd_RwAtStart(struct _AtUsart *pAtUsart,
-                     const char *pCmd);  //写命令,不含AT开始与结束字符
+                     const char *pCmd,  //写命令,不含AT开始与结束字符
+                     unsigned char Cfg); //AtUsart定义的读配置
 
 /******************************************************************************
 		                     阻塞方式读写数据函数
