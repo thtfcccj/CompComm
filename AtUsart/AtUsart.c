@@ -96,8 +96,10 @@ void AtUsart_1msHwTask(struct _AtUsart *pAtUsart)
   if(pAtUsart->RcvTimer != 0){//0不计数
     pAtUsart->RcvTimer--;
     if(!pAtUsart->RcvTimer){//超时退出并通报
-      if(pAtUsart->RcvFlag & AT_USART_RCV_ALL_MODE)//超时接收完成
+      if(pAtUsart->RcvFlag & AT_USART_RCV_ALL_MODE){//超时接收完成
+        pAtUsart->Rcv.Len += pAtUsart->pUsartDev->RcvLen;  //更新接收总数
         _RcvFinal(pAtUsart, 0);
+      }
       else _RcvFinal(pAtUsart, 1);//错误超时了
     }
   }
@@ -205,6 +207,7 @@ static signed char _UsartRcvAllNotify(void *pVoid)
 {
   struct _UsartDev *pUsart = pVoid;
   struct _AtUsart *pAtUsart = (struct _AtUsart *)pUsart->pVoid;
+  pAtUsart->Rcv.Len += pUsart->RcvLen;  //更新接收总数
   //状态机异常
   if(!(pAtUsart->RcvFlag & AT_USART_RCV_ALL_MODE)){
     _RcvFinal(pAtUsart, 3);
@@ -215,7 +218,6 @@ static signed char _UsartRcvAllNotify(void *pVoid)
     return -1;
   }
   //接收所有数据时,表示接收满了
-  pAtUsart->Rcv.Len += pUsart->RcvLen;  //更新总数
   if(pAtUsart->Rcv.Notify(pAtUsart, 0)){//继续接收接下来的数
     pAtUsart->pUsartDev->RcvLen = 0;//重新开始
     pAtUsart->RcvTimer = pAtUsart->RcvDoingOv;

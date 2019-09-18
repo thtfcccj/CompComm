@@ -19,9 +19,9 @@ void AtCmd_WrStart(struct _AtUsart *pAtUsart,
                    unsigned char Cfg)//AtUsart定义的写配置
 {
   //未使用默认缓冲区时
+  AtUsart_SendCfg(pAtUsart, Cfg); //先配置再缓冲区
   unsigned char *pSendBuf = AtUsart_pGetSendBuf(pAtUsart); 
   if(pWrData != pSendBuf) memcpy(pSendBuf, pWrData, Len);
-  AtUsart_SendCfg(pAtUsart, Cfg);
   AtUsart_SendBuf(pAtUsart, Len);
 }
   

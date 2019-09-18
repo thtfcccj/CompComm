@@ -79,6 +79,7 @@ struct _AtUsart{
 #define AT_USART_RCV_DIS_SLF     0x40     //不自动识别前导字符"<LF>"
 #define AT_USART_RCV_DIS_ECR     0x20     //不自动识别后导字符"<CR>"
 #define AT_USART_RCV_DIS_ELF     0x10     //不自动识别后导字符"<LF>"
+//组合：
 #define AT_USART_RCV_DIS_ALL     0xF0    //不自动加所有前后导字符(可实现全接收)
 #define AT_USART_RCV_DIS_START   0xC0     //不自动识别前导所有字符掩码
 #define AT_USART_RCV_DIS_END     0x30     //不自动识别后导所有字符掩码
