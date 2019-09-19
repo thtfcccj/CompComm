@@ -10,6 +10,12 @@
 		                      相关配置
 ****************************************************************************/
 
+//此模块为可选时，（此模块不用，供外部使用, 定义需放全局配置里）
+//#define SUPPORT_ESP8266
+
+//支持基类时(用于通讯通数等， 定义需放全局配置里)
+//#define SUPPORT_ESP8266_BASE     
+
 #ifndef ESP8266_WR_BUF_SIZE     //写缓冲大小
   #define ESP8266_WR_BUF_SIZE          256
 #endif 
@@ -23,9 +29,15 @@
 ****************************************************************************/
 
 #include "AtUsart.h"
+#ifdef SUPPORT_ESP8266_BASE
+  #include "ComBase.h"
+#endif
 
 //主结构
 struct _ESP8266{
+  #ifdef SUPPORT_ESP8266_BASE
+    struct _ComBase Base;        //通讯基类
+  #endif
   //底层实例:
   struct _AtUsart AtUsart;       //独占型(Usart不独占)
   struct _UsartDev OrgUsartDev; //缓冲被劫持的底层设备信息以便于恢复  
@@ -135,13 +147,13 @@ void ESP8266_Task(void);
 		                            回调函数
 ******************************************************************************/
 
-//--------------------获取本地TCP/IP服务器主机IP地址最低位---------------------
-//为ESP8266_MODE_TCP_PASS_LOCAL时将调用,高3位用本地IP代替
-//返回<=1将自动使用全球英特网模式
-unsigned char ESP8266_cbGetLocalServerIpLowest(unsigned char DevId);
-
 //--------------------获取全球TCP/IP服务器主机IP地址最低位---------------------
+//返回NULL为本地模式
 unsigned char *pESP8266_cbGetGlobalServerIp(unsigned char DevId);
+
+//--------------------获取本地TCP/IP服务器主机IP地址最低位---------------------
+//高3位用本地IP代替
+unsigned char ESP8266_cbGetLocalServerIpLowest(unsigned char DevId);
 
 //--------------------------获取TCP/IP服务器主机端口号---------------------
 //本地或全球

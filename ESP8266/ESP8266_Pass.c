@@ -54,15 +54,18 @@ void ESP8266_PassModeWr(void)
     memcpy(pBuf, _SetServer, sizeof(_SetServer));
     //IP地址替换
     char *pCurBuf = (char*)pESP8266->RdBuf; //临时借用此缓冲
-    unsigned char IpLowest = ESP8266_cbGetLocalServerIpLowest(pESP8266->AtUsart.DevId);
-    if(IpLowest > 1){//本地时
+    
+    const unsigned char *pIp = pESP8266_cbGetGlobalServerIp(pESP8266->AtUsart.DevId);
+    if(pIp == NULL){//本地时
       unsigned char LocalServerIp[4];
       memcpy(LocalServerIp, pESP8266->LocalIp, 3);
-      LocalServerIp[3] = IpLowest;
+      LocalServerIp[3] = ESP8266_cbGetLocalServerIpLowest(pESP8266->AtUsart.DevId);;
       Ip4ToStr(LocalServerIp, pCurBuf);
     }
-    else //全局时
-      Ip4ToStr(pESP8266_cbGetGlobalServerIp(pESP8266->AtUsart.DevId),pCurBuf);
+    else{ //全局时
+      Ip4ToStr(pIp,pCurBuf);
+    }
+      
     StringReplace(pBuf, _Dot3, pCurBuf);
     //端口替换(<=32767)
     Value2StringMin(ESP8266_cbGetServerPort(pESP8266->AtUsart.DevId),pCurBuf, 1);

@@ -124,12 +124,6 @@ void AtUsart_CfgRcv(struct _AtUsart *pAtUsart,
                     unsigned char *pBuf,           //缓冲区 
                     AtUsartNotify_t Notify);    //回调函数
 
-//------------------------此模块UsartDev发送完成中断调用函数实现--------------------
-//形参为返struct _UsartDev指针
-//回状态定义为:0:继续收发,其它:停止收发
-//可用于判断
-signed char AtUsart_UsartDevSendEndNotify(void *pVoid);
-
 /******************************************************************************
 		                     收发数据操作函数
 ******************************************************************************/

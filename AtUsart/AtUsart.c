@@ -8,6 +8,17 @@
 #include <string.h>
 #include "MemMng.h"
 
+//------------------------此模块UsartDev发送完成中断调用函数实现--------------------
+//形参为返struct _UsartDev指针
+//回状态定义为:0:继续收发,其它:停止收发
+//可用于判断
+static signed char _UsartSendEndNotify(void *pVoid);
+
+//---------------------UsartDev接收单个字中断调用函数实现------------------------
+//形参为返struct _UsartDev指针
+//回状态定义为:0:继续收发,其它:停止收发
+static signed char _UsartRcvNotify(void *pVoid);
+
 /******************************************************************************
 		                           相关函数-系统相关
 ******************************************************************************/
@@ -23,6 +34,10 @@ void AtUsart_Init(struct _AtUsart *pAtUsart,
   memset(pAtUsart, 0, sizeof(struct _AtUsart));
   pAtUsart->pUsartDev = pUsartDev;
   pUsartDev->pVoid = pAtUsart;
+  //预置中断入口以与pUsartDev->pVoid成对防止抢占USART时完整性问题引起的异常
+  pUsartDev->RcvEndInt = _UsartRcvNotify;
+  pUsartDev->SendEndInt = _UsartSendEndNotify;
+  
   pAtUsart->DevId = DevId;  
   pAtUsart->Flag |= ModeMask;
 }
@@ -113,7 +128,7 @@ void AtUsart_1msHwTask(struct _AtUsart *pAtUsart)
 //------------------------UsartDev发送完成中断调用函数实现--------------------
 //形参为返struct _UsartDev指针
 //回状态定义为:0:继续收发,其它:停止收发
-signed char AtUsart_UsartDevSendEndNotify(void *pVoid)
+signed char _UsartSendEndNotify(void *pVoid)
 {
   struct _UsartDev *pUsart = pVoid;
   struct _AtUsart *pAtUsart = (struct _AtUsart *)pUsart->pVoid;
@@ -178,7 +193,7 @@ void AtUsart_SendBuf(struct _AtUsart *pAtUsart, unsigned short SendLen)
   UsartDev_SendStart(pAtUsart->pUsartDev,
                      pAtUsart->Send.pBuf,         //发送缓冲区
                      0x8000 | SendLen,            //发送数据大小
-                     AtUsart_UsartDevSendEndNotify);     //发送回调函数  
+                     _UsartSendEndNotify);     //发送回调函数  
 }
 //强制停止发送数据
 void AtUsart_SendStop(struct _AtUsart *pAtUsart)

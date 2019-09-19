@@ -41,6 +41,9 @@ static signed char _AtUsartWrNotify(const void *pv,
                                      signed char State)
 { 
   pESP8266->HwWrResume = State;
+  #ifdef SUPPORT_ESP8266_BASE
+    pESP8266->Base.CommCount++; 
+  #endif
   return 0;
 }
 
@@ -54,6 +57,12 @@ static signed char _AtUsartRdNotify(const void *pv,
   if((pESP8266->CurMode == ESP8266_MODE_TCP_PASS) && 
      (pESP8266->ModeState == ESP8266_MODE_PASS_DOING))
     pESP8266->Flag |= ESP8266_PASS_RCV_FINAL;
+  
+  #ifdef SUPPORT_ESP8266_BASE
+    if(State) pESP8266->Base.InvalidCount++; 
+    else pESP8266->Base.ValidCount++;
+  #endif
+  
   return 0;
 }
 
@@ -78,11 +87,11 @@ signed char ESP8266_GetWrRusume(void)
 //----------------------------重启通讯---------------------------------
 void _ReStartComm(void)
 {
-  pESP8266->Flag &= ~(ESP8266_HW_RDY_MASK | ESP8266_PASS_RCV_FINAL);
-  pESP8266->CommErrIndex = 0;
+  pESP8266->Flag &= ~(ESP8266_HW_RDY_MASK | ESP8266_PASS_RCV_FINAL | ESP8266_RD_WAIT);
+  pESP8266->CurCommErrIndex = 0;
   pESP8266->CurMode = ESP8266_MODE_INIT;
   pESP8266->ModeState = ESP8266_MODE_INIT_ENTER;//因ESP8266有记忆功能，故可以直接就连上了
-  ESP8266_InitModeRd();
+  pESP8266->Timer = 0;//下周期开始
 }     
          
 //-------------------------------初始化函数---------------------------------
@@ -98,6 +107,10 @@ void ESP8266_Init(struct _UsartDev *pUsartDev, //已初始化完成的底层设备
   //初始化相关
   pESP8266->Flag = CwMode;
   pESP8266->PreMode = PreMode; 
+  
+  #ifdef SUPPORT_ESP8266_BASE
+    pESP8266->Base.ComId = DevId;
+  #endif
   
   ESP8266_ReGetUsartDev(pUsartDev); //先获取控制权
   AtUsart_Init(&pESP8266->AtUsart, pUsartDev, DevId, 0); //自动得到串口
@@ -157,7 +170,7 @@ void ESP8266_Task(void)
     return;
   }
   
-  //根据工作状态执行任务
+  //=======================根据工作状态执行任务=======================
   switch(pESP8266->CurMode){
     case ESP8266_MODE_INIT:  //初始化模式
       if((pESP8266->Flag & ESP8266_RD_WAIT)) //写完返回时,检查结果
@@ -169,21 +182,23 @@ void ESP8266_Task(void)
       else ESP8266_PassModeWr(); break;      
     default: break;
   }
-  //在暂态时，相同状态达到一定阶段重新启动状态防止异常
+  
+  
+  //============在暂态时，相同状态达到一定阶段重新启动状态防止异常========
   if(!(pESP8266->Flag & ESP8266_PASS_RCV_FINAL) && 
      (pESP8266->CurMode != ESP8266_MODE_CFG)){
     if(pESP8266->ModeState == pESP8266->PrvModeState){
-      pESP8266->CommErrIndex++;
-      if(pESP8266->CommErrIndex == 255){//计时到了
+      pESP8266->CurCommErrIndex++;
+      if(pESP8266->CurCommErrIndex == 255){//计时到了
         _ReStartComm();
       }
     }
     else{
       pESP8266->PrvModeState = pESP8266->ModeState;
-      pESP8266->CommErrIndex = 0;
+      pESP8266->CurCommErrIndex = 0;
     }
   }
-  else  pESP8266->CommErrIndex = 0;
+  else  pESP8266->CurCommErrIndex = 0;
   
   
 }
