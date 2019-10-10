@@ -162,7 +162,7 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 
 }
 
-//新加入:
+//---------------------由数据流得到SHA256值，带结构-----------------------------
 void SHA256ctx(SHA256_CTX *ctx, const BYTE data[], size_t len, BYTE hash[])
 {
   sha256_init(ctx);
@@ -170,7 +170,7 @@ void SHA256ctx(SHA256_CTX *ctx, const BYTE data[], size_t len, BYTE hash[])
   sha256_final(ctx, hash);
 }
 
-//---------------------由数据流得到SHA256值----------------------------------\
+//---------------------由数据流得到SHA256值----------------------------------
 //不可重入时才能调用
 SHA256_CTX _Ctx;
 void SHA256(const unsigned char *pData, //数据

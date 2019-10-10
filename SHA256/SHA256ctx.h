@@ -24,6 +24,7 @@ void sha256_init(SHA256_CTX *ctx);
 void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len);
 void sha256_final(SHA256_CTX *ctx, BYTE hash[]);
 
+//---------------------由数据流得到SHA256值，带结构-----------------------------
 //外部结构化独立使用时:
 void SHA256ctx(SHA256_CTX *ctx, const BYTE data[], size_t len, BYTE hash[]);
 
