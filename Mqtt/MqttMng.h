@@ -1,6 +1,7 @@
 /*******************************************************************************
 
-                     Mqtt协议管理器
+                     Mqtt协议管理器-作为客户端时
+* 仅支持MQTT数据包的串行处理，不支持并行处理
 * 管理器仅负责MQTT的工作状态，相关数据及数据协议不在此处理。
 * 管理器仅依赖于transport模块实现数据收发，与底层数据无关。
 * 此管理器使用paho MQTT协议栈进行数据的序列化或与反序列化。
@@ -30,9 +31,24 @@ enum _MqttMngState{
   MqttMngState_Publish = 2,      //发送消息状态(获取订阅后回)
 };
 
+//订阅模式应答包缓冲
+struct _MqttMngSubscribeAck{
+  unsigned short PacketId;
+};
+
+//发布模式应答包缓冲
+struct _MqttMngPublishAck{
+  unsigned char  PacketType; 
+  unsigned char  Dup;
+  unsigned short PacketId;
+};
+
 //序列化/反序列化需要的数据缓冲
 union _MqttMngDataBuf{
-  MQTTPacket_connectData Connect; //连接需要的数据
+  MQTTPacket_connectData Connect;          //连接需要的数据
+  struct _MqttMngSubscribeAck SubscribeAck; //订阅模式应答包缓冲
+  struct _MqttUserPublish Publish;        //发布时数据临时缓冲
+  struct _MqttMngPublishAck PublishAck;  //发布模式应答包缓冲
 };
 
 struct _MqttMng{
@@ -46,14 +62,21 @@ struct _MqttMng{
   //缓冲相关
   union _MqttMngDataBuf Buf;            //中转缓冲区
   unsigned char SerializeBuf[MQTT_MNG_SERIALIZE_BUF_LEN]; //序列化数据缓冲区
-  signed short SerializeLen;         //序列化后的有效数据个数,负值见MQTT定义
+  signed short SerializeLen;            //序列化后的有效数据个数,负值见MQTT定义
+  unsigned short PacketIdIndex;         //包计数器
+  unsigned short CuPacketId;           //当前正在操作包的ID号
+  struct _MqttUserPublish WrPublishBuf; //发布时写数据缓冲
   
   signed char Err;      //错误标志
   unsigned char Flag;  //相关标志，见定义
 };
 
 //相关标志定义为:
-#define MQTT_MNG_TYPE_CONTINUE  0x80   //当前状态正常继续
+#define MQTT_MNG_TYPE_CONTINUE         0x80   //当前状态正常继续
+#define MQTT_MNG_TYPE_PUBLISH_RCVED    0x40   //收到发布消息标志
+#define MQTT_MNG_TYPE_PUBLISH_RDY      0x20   //发布消息已准备好标志
+#define MQTT_MNG_TYPE_PUBLISH_RCVER    0x10   //发布消息时现在为接收者，否则为发送者
+
 
 extern struct _MqttMng MqttMng;  //直接单例化
 
