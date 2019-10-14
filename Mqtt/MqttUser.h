@@ -34,17 +34,19 @@ struct _MqttUserPublish{
 struct _MqttUser{
   //得到字符串类对像,形参见定义,返回见形参对应定义
   char *(*pGetString)(unsigned char TypeId);  
+  
+  //得到订阅,形参为订阅编号，返回NULL表示完成  
+  struct _MqttUserSubscribe *(*pGetSubscribe)(unsigned char No);
+  //订阅返回时，将真正服务器上的Qos回写至原订阅中,不需要时此函数时可定义为NULL
+  int *(*pGetSubscribeQosAry)(unsigned char No, int *pQosAryLen);  
+  
   //收到发布数据后的处理
   //形参pRdPublish表示收到的发布数据,为NULL表示周期发布信息调用
   //完事后若不需要回应,pWrPublish->pPayload应为NULL,否则应填充回应的数据
   //注: pWrPublish中的Dup位设置无效。
   void(*PublishPro)(const struct _MqttUserPublish *pRdPublish,
                      struct _MqttUserPublish *pWrPublish);  
-  //得到订阅,形参为订阅编号，返回NULL表示完成  
-  struct _MqttUserSubscribe *(*pGetSubscribe)(unsigned char No);
-  //订阅返回时，将真正服务器上的Qos回写至原订阅中,不需要时此函数时可定义为NULL
-  int *(*pGetSubscribeQosAry)(unsigned char No, int *pQosAryLen);
-  
+
   unsigned short KeepAlive;  //保活时间，s为单位
 };
 

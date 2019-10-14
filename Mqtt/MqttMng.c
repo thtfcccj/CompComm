@@ -88,7 +88,7 @@ static void _ConnectSend(void)
 static void _SubscribeSend(unsigned char Dup)//形参为重发标志，0或_DUP
 {
   unsigned char Pos = MqttMng.SubState;  
-  struct _MqttUserSubscribe *pSubscribe = MqttMng.pUser->pGetSubscribe(Pos);  
+  const struct _MqttUserSubscribe *pSubscribe = MqttMng.pUser->pGetSubscribe(Pos);  
   if(pSubscribe == NULL){//订阅完成了
     MqttMng.eMsgTypes = PUBLISH; //转到发布模式等待
     return;
