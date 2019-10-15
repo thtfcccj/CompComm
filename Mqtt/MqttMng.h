@@ -14,8 +14,13 @@
                             相关定义
 *******************************************************************************/
 
-#define MQTT_MNG_SERIALIZE_BUF_LEN    512 //序列化字符长度，与应用相关
+#ifndef MQTT_MNG_SERIALIZE_BUF_LEN  //序列化字符长度，与应用相关
+  #define MQTT_MNG_SERIALIZE_BUF_LEN    300    
+#endif
 
+#ifndef MQTT_MNG_USER_PAYLOAD_LEN  //用户荷载长度，与应用相关
+  #define MQTT_MNG_USER_PAYLOAD_LEN     128   
+#endif
 
 /*******************************************************************************
                             相关结构
@@ -47,8 +52,10 @@ struct _MqttMngPublishAck{
 union _MqttMngDataBuf{
   MQTTPacket_connectData Connect;          //连接需要的数据
   struct _MqttMngSubscribeAck SubscribeAck; //订阅模式应答包缓冲
-  struct _MqttUserPublish Publish;        //发布时数据临时缓冲
+  struct _MqttUserPublish RdPublish;        //发布时读数据临时缓冲
   struct _MqttMngPublishAck PublishAck;  //发布模式应答包缓冲
+  //发布时读数据的用户荷载缓冲
+  unsigned char WrPublishPayloadBuf[MQTT_MNG_USER_PAYLOAD_LEN];   
 };
 
 struct _MqttMng{

@@ -156,23 +156,26 @@ static void _PublishRcvPro(void)
   if(MqttMng.Flag & MQTT_MNG_TYPE_PUBLISH_RCVED){
     MqttMng.Flag &= ~MQTT_MNG_TYPE_PUBLISH_RCVED;//处理了
     unsigned short CuPacketId;
-    if(MQTTDeserialize_publish(&MqttMng.Buf.Publish.Dup,
-                               &MqttMng.Buf.Publish.QoS,
-                               &MqttMng.Buf.Publish.Retained, 
+    if(MQTTDeserialize_publish(&MqttMng.Buf.RdPublish.Dup,
+                               &MqttMng.Buf.RdPublish.QoS,
+                               &MqttMng.Buf.RdPublish.Retained, 
                                &CuPacketId, 
-                               &MqttMng.Buf.Publish.TopicName,
-                               &MqttMng.Buf.Publish.pPayload, 
-                               &MqttMng.Buf.Publish.PayloadLen,
+                               &MqttMng.Buf.RdPublish.TopicName,
+                               &MqttMng.Buf.RdPublish.pPayload, 
+                               &MqttMng.Buf.RdPublish.PayloadLen,
                                MqttMng.SerializeBuf, 
                                MqttMng.SerializeLen) != 1){//异常
       MqttMng.RetryIndex++;
       return;
     }
-    pRdPublishBuf = &MqttMng.Buf.Publish;
+    pRdPublishBuf = &MqttMng.Buf.RdPublish;
     MqttMng.CuPacketId = CuPacketId;//留存待用
   }
   else pRdPublishBuf = NULL;//为周期调用
-  MqttMng.pUser->PublishPro(&MqttMng.WrPublishBuf, pRdPublishBuf);//交由用户处理
+  //交由用户处理
+  MqttMng.WrPublishBuf.pPayload = MqttMng.Buf.WrPublishPayloadBuf;//指向填入数据缓冲
+  MqttMng.WrPublishBuf.PayloadLen = MQTT_MNG_USER_PAYLOAD_LEN;//缓冲大小
+  MqttMng.pUser->PublishPro(&MqttMng.WrPublishBuf, pRdPublishBuf);
   
   //收到发布数据时检查并回应应答
   unsigned char RcvQoS;
@@ -187,7 +190,7 @@ static void _PublishRcvPro(void)
   }
   else RcvQoS = 0;
   
-  if(MqttMng.WrPublishBuf.pPayload == NULL){//有数据缓冲时
+  if(MqttMng.WrPublishBuf.PayloadLen){//有数据缓冲时
     if(RcvQoS == 0) _PublishSend(0); //直接发布
     else  MqttMng.Flag |= MQTT_MNG_TYPE_PUBLISH_RDY; //稍后发送
   }

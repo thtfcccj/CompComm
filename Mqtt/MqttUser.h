@@ -22,12 +22,12 @@ struct _MqttUserSubscribe{
 
 //管理器需要的发布消息格式定义,收发相同
 struct _MqttUserPublish{
-  unsigned char Dup;         //重发标志,1表示首次未回应重发的消息
+  unsigned char Dup;         //重发标志,接收有效，1表示首次未回应重发的消息
   unsigned char Retained;    //保留标志,表示服务器端需一直保留此信息  
   int QoS;                    //对应阵列的服务级别,0,1,2
   MQTTString TopicName;       //主题名称 
   unsigned char *pPayload;  //收发用户数据内容(发送时需指向自已的缓冲区) 
-  int PayloadLen;            //收发数据内容长度
+  int PayloadLen;            //收发数据内容长度,0无数据要发送
 };
 
 //用户相关信息
@@ -42,8 +42,9 @@ struct _MqttUser{
   
   //收到发布数据后的处理
   //形参pRdPublish表示收到的发布数据,为NULL表示周期发布信息调用
-  //完事后若不需要回应,pWrPublish->pPayload应为NULL,否则应填充回应的数据
-  //注: pWrPublish中的Dup位设置无效。
+  //写入时用PayloadLen为写缓冲大小，pPayload为需填充的数据。
+  //PayloadLen表示已填填充数据长度，0时没有填充不发送
+  //注: pWrPublish中的Dup位设置无效,写缓冲后,pRdPublish不可再使用!!
   void(*PublishPro)(const struct _MqttUserPublish *pRdPublish,
                      struct _MqttUserPublish *pWrPublish);  
 
