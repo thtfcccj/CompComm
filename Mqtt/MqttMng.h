@@ -92,24 +92,26 @@ extern struct _MqttMng MqttMng;  //直接单例化
 *******************************************************************************/
 
 //----------------------------初始化函数----------------------------------------
-void MqttMng_Init(void);
+void MqttMng_Init(const struct _MqttUser *pUser);    //带入的用户信息
 
 //-------------------------接收处理函数----------------------------------------
 void MqttMng_RcvPro(unsigned char *pData,  //数据区
                     unsigned short RcvLen,   //收到的数据长度
                     unsigned short BufSize); //缓冲区大小
 
+//-------------------------快速任务函数----------------------------------------
+void MqttMng_FastTask(void);
+
 //-------------------------10ms任务函数----------------------------------------
 void MqttMng_Task(void);
-
 
 /*******************************************************************************
                               回调函数
 *******************************************************************************/
 
 //---------------------------------通讯无法与MQTT服务器通讯---------------------
-void MqttMng_ErrToServerNotify(void);
-
+//void MqttMng_ErrToServerNotify(void);
+#define MqttMng_ErrToServerNotify() do{}while(0)
 
 
 #endif //MQTT_MNG_H
