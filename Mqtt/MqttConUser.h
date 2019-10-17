@@ -72,37 +72,41 @@ struct _MqttConUserInfo{
 //用户相关信息
 struct _MqttConUser{
   struct _MqttConUserInfo Info;
+  unsigned char AryId;  //存放此多例阵列的ID号
 };
-
-extern struct _MqttConUser MqttConUser; //直接单例化
 
 /*******************************************************************************
                           相关函数
 *******************************************************************************/
 
 //-----------------------------初始化函数---------------------------------------
-void MqttConUser_Init(signed char Inited);
+void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
+                      unsigned char AryId,  //存放此多例阵列的ID号
+                      signed char Inited);
 
 //-------------------------------得到配置位-------------------------------------
-#define MqttConUser_GetCfg() (MqttConUser.Info.Cfg)
+#define MqttConUser_GetCfg(mqttConUser) ((mqttConUser)->Info.Cfg)
 
 //-------------------------------设置配置位-------------------------------------
-void MqttConUser_SetCfg(unsigned char Cfg);
+void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
+                        unsigned char Cfg);
 
 //-----------------------------得到协议类型-------------------------------------
-#define  MqttConUser_GetProtocol() \
-    (MqttConUser_GetCfg() & MQTT_CON_USER_CFG_PROTOCOL_MASK)
+#define  MqttConUser_GetProtocol(mqttConUser) \
+    (MqttConUser_GetCfg(mqttConUser) & MQTT_CON_USER_CFG_PROTOCOL_MASK)
 
 //----------------------------得到相关Info信息----------------------------------
 //此为GUI接口，TYPE定义为: 
 #define MQTT_CON_USER_NAME    0   //用户名
 #define MQTT_CON_USER_PASS    1   //用户密码
 #define MQTT_CON_USER_INFO    2   //相关信息
-void MqttConUser_GetInfo(unsigned char Type, char *pBuf);
+void MqttConUser_GetInfo(const struct _MqttConUser *pMqttConUser,
+                         unsigned char Type, char *pBuf);
 
 //----------------------------设备相关Info信息----------------------------------
 //此为GUI接口，TYPE定义同MqttConUser_GetInfo: 
-void MqttConUser_SetInfo(unsigned char Type, char *pBuf);
+void MqttConUser_SetInfo(struct _MqttConUser *pMqttConUser,
+                         unsigned char Type, char *pBuf);
 
 /*******************************************************************************
                           相关回调函数
@@ -110,7 +114,7 @@ void MqttConUser_SetInfo(unsigned char Type, char *pBuf);
 
 //-----------------------根据通讯协议到Mqtt连接信息处理-------------------------
 //Info里是读出的密码，加密后放回原处
-void MqttConUser_cbToMqttConInfo(void);
+void MqttConUser_cbToMqttConInfo(struct _MqttConUser *pMqttConUser);
 
 
 

@@ -9,36 +9,38 @@
 #include "Eeprom.h"
 #include <string.h>
 
-struct _MqttConUser MqttConUser; //直接单例化
-
 /*******************************************************************************
                           相关函数实现
 *******************************************************************************/
 
 //-----------------------------初始化函数---------------------------------------
-void MqttConUser_Init(signed char Inited)
+void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
+                      unsigned char AryId,  //存放此多例阵列的ID号
+                      signed char Inited)
 {
-  memset(&MqttConUser, 0, sizeof(struct _MqttConUser));
+  memset(pMqttConUser, 0, sizeof(struct _MqttConUser));
+  pMqttConUser->AryId = AryId;
   if(!Inited){
-    Eeprom_Wr(MqttConUser_GetInfoBase(),
-              &MqttConUser.Info,
+    Eeprom_Wr(MqttConUser_GetInfoBase(AryId),
+              &pMqttConUser->Info,
               sizeof(struct _MqttConUserInfo));
   }
   else{
-    Eeprom_Rd(MqttConUser_GetInfoBase(),
-              &MqttConUser.Info,
+    Eeprom_Rd(MqttConUser_GetInfoBase(AryId),
+              &pMqttConUser->Info,
               sizeof(struct _MqttConUserInfo));    
   }
 
   //转到MQTT通讯信息
-  if(MqttConUser.Info.Cfg) MqttConUser_cbToMqttConInfo();
+  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
 }
 
 //-------------------------------设置配置位-------------------------------------
-void MqttConUser_SetCfg(unsigned char Cfg)
+void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
+                        unsigned char Cfg)
 {
-  MqttConUser.Info.Cfg = Cfg;
-  Eeprom_Wr(MqttConUser_GetInfoBase() +
+  pMqttConUser->Info.Cfg = Cfg;
+  Eeprom_Wr(MqttConUser_GetInfoBase(pMqttConUser->AryId) +
             struct_offset(struct _MqttConUserInfo, Cfg),  &Cfg, 2); 
 }
 
@@ -56,24 +58,30 @@ static const unsigned char _InfoLen[] = {
 };
 
 //----------------------------得到相关Info信息----------------------------------
-void MqttConUser_GetInfo(unsigned char Type, char *pBuf)
+void MqttConUser_GetInfo(const struct _MqttConUser *pMqttConUser,
+                         unsigned char Type, char *pBuf)
 {
-  Eeprom_Rd(MqttConUser_GetInfoBase() + _InfoBase[Type], pBuf, _InfoLen[Type]);  
+  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
+            _InfoBase[Type], pBuf, _InfoLen[Type]);  
 }
 
 //----------------------------设置相关Info信息----------------------------------
 //此为GUI接口，TYPE定义同MqttConUser_GetInfo: 
-void MqttConUser_SetInfo(unsigned char Type, char *pBuf)
+void MqttConUser_SetInfo(struct _MqttConUser *pMqttConUser,
+                         unsigned char Type, char *pBuf)
 {
   //错误检查
   if(Type > 3) return;
   unsigned char Len = _InfoLen[Type];
   if(strlen(pBuf) >= Len) *(pBuf + Len - 1) = '\0';//强制截断
   //保存
-  Eeprom_Wr(MqttConUser_GetInfoBase() + _InfoBase[Type], pBuf, Len);
+  Eeprom_Wr(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
+            _InfoBase[Type], pBuf, Len);
   //重新读取以更新MQTT通讯信息
-  Eeprom_Rd(MqttConUser_GetInfoBase(),&MqttConUser.Info, sizeof(struct _MqttConUserInfo));
-  if(MqttConUser.Info.Cfg) MqttConUser_cbToMqttConInfo();
+  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId),
+            &pMqttConUser->Info, 
+            sizeof(struct _MqttConUserInfo));
+  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
 }
 
 

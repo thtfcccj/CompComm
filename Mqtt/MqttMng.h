@@ -66,14 +66,15 @@ struct _MqttMng{
   unsigned char RetryIndex;           //相关状态重试次数
   //用户交互相关：
   const struct _MqttUser *pUser;    //带入的用户信息
+  void *pUserHandle;                 //用户信息需要的句柄
   //缓冲相关
   union _MqttMngDataBuf Buf;            //中转缓冲区
   unsigned char SerializeBuf[MQTT_MNG_SERIALIZE_BUF_LEN]; //序列化数据缓冲区
+  struct _MqttUserPublish WrPublishBuf; //发布时写数据缓冲
+  
   signed short SerializeLen;            //序列化后的有效数据个数,负值见MQTT定义
   unsigned short PacketIdIndex;         //包计数器
   unsigned short CuPacketId;           //当前正在操作包的ID号
-  struct _MqttUserPublish WrPublishBuf; //发布时写数据缓冲
-  
   signed char Err;      //错误标志
   unsigned char Flag;  //相关标志，见定义
 };
@@ -83,27 +84,33 @@ struct _MqttMng{
 #define MQTT_MNG_TYPE_PUBLISH_RCVED    0x40   //收到发布消息标志
 #define MQTT_MNG_TYPE_PUBLISH_RDY      0x20   //发布消息已准备好标志
 #define MQTT_MNG_TYPE_PUBLISH_RCVER    0x10   //发布消息时现在为接收者，否则为发送者
-
-
-extern struct _MqttMng MqttMng;  //直接单例化
+#define MQTT_MNG_ARY_SOCK_ID_MASK       0x0F   //SockId
 
 /*******************************************************************************
                           相关函数
 *******************************************************************************/
 
 //----------------------------初始化函数----------------------------------------
-void MqttMng_Init(const struct _MqttUser *pUser);    //带入的用户信息
+void MqttMng_Init(struct _MqttMng *pMqtt,
+                  const struct _MqttUser *pUser,   //带入的用户信息
+                  void *pUserHandle);               //用户信息需要的句柄
 
+
+//-------------------------更新SockId----------------------------------------
+void MqttMng_UdatetSockId(struct _MqttMng *pMqtt,
+                          unsigned char SockId);
+                    
 //-------------------------接收处理函数----------------------------------------
-void MqttMng_RcvPro(unsigned char *pData,  //数据区
+void MqttMng_RcvPro(struct _MqttMng *pMqtt,
+                    unsigned char *pData,  //数据区
                     unsigned short RcvLen,   //收到的数据长度
                     unsigned short BufSize); //缓冲区大小
 
 //-------------------------快速任务函数----------------------------------------
-void MqttMng_FastTask(void);
+void MqttMng_FastTask(struct _MqttMng *pMqtt);
 
 //-------------------------10ms任务函数----------------------------------------
-void MqttMng_Task(void);
+void MqttMng_Task(struct _MqttMng *pMqtt);
 
 /*******************************************************************************
                               回调函数
