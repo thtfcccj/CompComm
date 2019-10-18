@@ -84,7 +84,9 @@ struct _MqttMng{
 #define MQTT_MNG_TYPE_PUBLISH_RCVED    0x40   //收到发布消息标志
 #define MQTT_MNG_TYPE_PUBLISH_RDY      0x20   //发布消息已准备好标志
 #define MQTT_MNG_TYPE_PUBLISH_RCVER    0x10   //发布消息时现在为接收者，否则为发送者
-#define MQTT_MNG_ARY_SOCK_ID_MASK       0x0F   //SockId
+
+#define MQTT_MNG_WORK_PAUSE            0x08   //工作暂停标志
+#define MQTT_MNG_ARY_SOCK_ID_MASK       0x07   //SockId
 
 /*******************************************************************************
                           相关函数
@@ -99,6 +101,11 @@ void MqttMng_Init(struct _MqttMng *pMqtt,
 //-------------------------更新SockId----------------------------------------
 void MqttMng_UdatetSockId(struct _MqttMng *pMqtt,
                           unsigned char SockId);
+
+//--------------------------暂停与继续---------------------------------------
+#define MqttMng_IsPause(mqtt) ((mqtt)->Flag & MQTT_MNG_WORK_PAUSE)
+#define MqttMng_WorkPause(mqtt) do{(mqtt)->Flag |= MQTT_MNG_WORK_PAUSE;}while(0)
+#define MqttMng_WorkContinue(mqtt) do{(mqtt)->Flag &= ~MQTT_MNG_WORK_PAUSE;}while(0)
                     
 //-------------------------接收处理函数----------------------------------------
 void MqttMng_RcvPro(struct _MqttMng *pMqtt,

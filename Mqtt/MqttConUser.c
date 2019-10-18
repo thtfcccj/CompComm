@@ -28,7 +28,11 @@ void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
   else{
     Eeprom_Rd(MqttConUser_GetInfoBase(AryId),
               &pMqttConUser->Info,
-              sizeof(struct _MqttConUserInfo));    
+              sizeof(struct _MqttConUserInfo));
+    //防止存储异常，尾部强制加0
+    pMqttConUser->Info.UserName[MQTT_CON_USER_NAME_LEN - 1] = '\0';
+    pMqttConUser->Info.UserPass[MQTT_CON_USER_PASS_LEN - 1] = '\0';
+    pMqttConUser->Info.Info[MQTT_CON_USER_INFO_LEN - 1] = '\0';
   }
 
   //转到MQTT通讯信息

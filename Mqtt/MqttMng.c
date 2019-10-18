@@ -356,7 +356,7 @@ void MqttMng_Init(struct _MqttMng *pMqtt,
                   const struct _MqttUser *pUser,    //带入的用户信息
                   void *pUserHandle)                 //用户信息需要的句柄          
 {
-  memset(&pMqtt, 0, sizeof(struct _MqttMng));
+  memset(pMqtt, 0, sizeof(struct _MqttMng));
   pMqtt->pUser = pUser;
   pMqtt->pUserHandle = pUserHandle;
 }
@@ -383,21 +383,22 @@ void MqttMng_FastTask(struct _MqttMng *pMqtt)
 //-------------------------10ms任务函数----------------------------------------
 void MqttMng_Task(struct _MqttMng *pMqtt)
 {
-  //不在等待应答模式不计时并继续
-  if(!(_MstTypeInfo[pMqtt->eMsgTypes] & 0x80)) return;
+  if(pMqtt->Flag & MQTT_MNG_WORK_PAUSE) return; //暂停了
   
   if(pMqtt->WaitTimer){
     pMqtt->WaitTimer--;
-    return; //未超时
+    return; //等待时间未到
   }
   
-  //超时预处理
+  //等待回应模式超时预处理
+  if((_MstTypeInfo[pMqtt->eMsgTypes] & 0x80)){
   pMqtt->RetryIndex++;
-  if(pMqtt->RetryIndex == 10) {
-    MqttMng_ErrToServerNotify();
-    pMqtt->WaitTimer = 255;    //最长等待时间以等待重新建立通讯
-    pMqtt->RetryIndex = 0;
-    pMqtt->eMsgTypes = CONNECT; //重新连接
+    if(pMqtt->RetryIndex == 10) {
+      MqttMng_ErrToServerNotify();
+      pMqtt->WaitTimer = 255;    //最长等待时间以等待重新建立通讯
+      pMqtt->RetryIndex = 0;
+      pMqtt->eMsgTypes = CONNECT; //重新连接
+    }
   }
   
   _SendOrRcvOvPro(pMqtt); //定时接收超时处理
