@@ -28,9 +28,9 @@ static const unsigned char _MstTypeInfo[16] = {
   0x80 | SUBSCRIBE,  //SUBACK,      //服务器的订阅消息应答
   0x00 | UNSUBACK,   //UNSUBSCRIBE, //取消订阅消息(★暂未实现)
   0x80 | DISCONNECT, //UNSUBACK,    //服务器的取消订阅消息应答(★暂未实现)
-	0x00 | PINGRESP,   //PINGREQ,     //心跳报文发送，通知服务器我还在(★暂未实现)
-  0x80 | PUBLISH,   //PINGRESP,     //心跳报文服务器响应，告知我服务器还在(★暂未实现)
-  0x00 | 0,         //DISCONNECT    //告知我已断开服务器的连接(★暂未实现)
+	0x00 | PINGRESP,   //PINGREQ,     //心跳报文发送，通知服务器我还在
+  0x80 | PUBLISH,   //PINGRESP,     //心跳报文服务器响应，告知我服务器还在
+  0x00 | 0,         //DISCONNECT    //告知我已断开服务器的连接
   0x00 | 0,         //reserved      //保留 
 };
 
@@ -45,11 +45,12 @@ static void _SendSerialize(struct _MqttMng *pMqtt,
   if(pMqtt->SerializeLen <= 0) //异常
     pMqtt->Err = pMqtt->SerializeLen; 
   else{
-    transport_sendPacketBuffer(pMqtt->Flag & MQTT_MNG_ARY_SOCK_ID_MASK,//SockId 
+    transport_sendPacketBuffer(pMqtt->SocketId, 
                                pMqtt->SerializeBuf, 
                                pMqtt->SerializeLen);
     pMqtt->eMsgTypes = NextMsgTypes; 
-    pMqtt->WaitTimer = 255;    //最长等待时间
+    pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
+                                             MQTT_USER_TIME_SERVER_RESP);
   }
 }
 
@@ -75,7 +76,8 @@ static void _ConnectSend(struct _MqttMng *pMqtt)
   memcpy(pData, &_connectDataDefault, sizeof(MQTTPacket_connectData));
 	pData->clientID.cstring = pMqtt->pUser->pGetString(pMqtt->pUserHandle,
                                                      MQTT_USER_TYPE0_CLIENT_ID);
-	pData->keepAliveInterval = pMqtt->pUser->KeepAlive;
+	pData->keepAliveInterval = pMqtt->pUser->GetTime(pMqtt->pUserHandle, 
+                                                   MQTT_USER_TIME_KEEP_ALIVE);
 	pData->cleansession = 1;
 	pData->username.cstring = pMqtt->pUser->pGetString(pMqtt->pUserHandle,
                                                      MQTT_USER_TYPE0_USER_NAME);
@@ -121,7 +123,7 @@ static void _PublishSend(struct _MqttMng *pMqtt,
   pMqtt->Flag &= ~(MQTT_MNG_TYPE_PUBLISH_RDY | pMqtt->Flag & MQTT_MNG_TYPE_PUBLISH_RCVER); 
   
   pMqtt->SerializeLen = MQTTSerialize_publish(pMqtt->SerializeBuf, 
-                                               pMqtt->SerializeLen,
+                                               MQTT_MNG_SERIALIZE_BUF_LEN,
                                                Dup,
                                                pMqtt->WrPublishBuf.QoS,
                                                pMqtt->WrPublishBuf.Retained,
@@ -178,24 +180,30 @@ static void _PublishRcvPro(struct _MqttMng *pMqtt)
     }
     pRdPublishBuf = &pMqtt->Buf.RdPublish;
     pMqtt->CuPacketId = CuPacketId;//留存待用
+    
   }
-  else pRdPublishBuf = NULL;//为周期调用
+  else{//为周期调用
+    pRdPublishBuf = NULL;
+    pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
+                                             MQTT_USER_TIME_PERTROL_PEARIOD);
+  }
+  //交由用户处理之前先缓冲需要的pRdPublishBuf内需析资源防止被覆盖掉
+  unsigned char RcvQoS = pRdPublishBuf->QoS;
+  
   //交由用户处理
   pMqtt->WrPublishBuf.pPayload = pMqtt->Buf.WrPublishPayloadBuf;//指向填入数据缓冲
   pMqtt->WrPublishBuf.PayloadLen = MQTT_MNG_USER_PAYLOAD_LEN;//缓冲大小
   pMqtt->pUser->PublishPro(pMqtt->pUserHandle,
-                           &pMqtt->WrPublishBuf, pRdPublishBuf);
+                           pRdPublishBuf,
+                           &pMqtt->WrPublishBuf);
   
   //收到发布数据时检查并回应应答
-  unsigned char RcvQoS;
   if(pRdPublishBuf != NULL){
-    RcvQoS = pRdPublishBuf->QoS;
-    if(RcvQoS == 1){//确认收到了
+    if(RcvQoS == 1)//确认收到了
       _PublishAckSend(pMqtt, PUBACK, PUBLISH,  0);//作为接收者,回完就结束了。
-    }
-    else if(RcvQoS == 2){//确认收到数据的客户端,回复已记录
+    else if(RcvQoS == 2)//确认收到数据的客户端,回复已记录
       _PublishAckSend(pMqtt, PUBREC, PUBREL,  0);//作为接收者，转入等持释放信号
-    }
+    else RcvQoS = 0;//防止异常
   }
   else RcvQoS = 0;
   
@@ -211,7 +219,8 @@ static void _SendOrRcvOvPro(struct _MqttMng *pMqtt)
   //发送数据实现
   switch(pMqtt->eMsgTypes){
     case 0: //开机时，转到连接状态
-    case CONNECT: //中间重新连接状态时
+    case CONNECT: //连接状态时
+    case CONNACK: //没响应是接着发送
        _ConnectSend(pMqtt);break;    
     case SUBSCRIBE: //订阅状态
       _SubscribeSend(pMqtt, 0); break;
@@ -247,6 +256,9 @@ static void _SendOrRcvOvPro(struct _MqttMng *pMqtt)
       else{//发送者时,等待服务器完成信号超时
         pMqtt->RetryIndex++;
       }      
+      break;
+    case PINGRESP: //心跳报文超时
+      pMqtt->HeartBeatIndex = 1;//直接重试
       break;
   }
 }
@@ -337,14 +349,16 @@ void MqttMng_RcvPro(struct _MqttMng *pMqtt,
       }
       //检查PackedId略
     }
+    pMqtt->SubState++; //下一订阅
     goto _RcvNorEnd; //正确接收
   }
-  //其它未实现
-  
+  //其它未实现(含心跳报文回复),认为正确
   
 _RcvNorEnd: //正确接收时
   //转下一状态
   pMqtt->eMsgTypes = (enum msgTypes)(_MstTypeInfo[pMqtt->eMsgTypes] & 0x0f);
+  pMqtt->RetryIndex = 0;//复位
+  pMqtt->Flag |= MQTT_MNG_TYPE_CONTINUE;
   return;
 }
 
@@ -359,15 +373,7 @@ void MqttMng_Init(struct _MqttMng *pMqtt,
   memset(pMqtt, 0, sizeof(struct _MqttMng));
   pMqtt->pUser = pUser;
   pMqtt->pUserHandle = pUserHandle;
-}
-
-//-------------------------更新SockId----------------------------------------
-void MqttMng_UdatetSockId(struct _MqttMng *pMqtt,
-                          unsigned char SockId)//用于获取通讯，<16
-{
-  //pMqtt->SockId = SockId;
-  pMqtt->Flag &= ~MQTT_MNG_ARY_SOCK_ID_MASK;    
-  pMqtt->Flag |= SockId;
+  pMqtt->HeartBeatIndex = 1000;
 }
 
 //-------------------------快速任务函数----------------------------------------
@@ -380,25 +386,48 @@ void MqttMng_FastTask(struct _MqttMng *pMqtt)
   }
 }
 
+//------------------------心跳报文子任务函数------------------------------------
+//10ms为单位
+static void _HeartBeatTask(struct _MqttMng *pMqtt)
+{
+  if(pMqtt->eMsgTypes != PUBLISH) return; 
+  
+  
+  if(pMqtt->HeartBeatIndex) pMqtt->HeartBeatIndex--;
+  else{//心跳报文防止服务器掉线()
+    pMqtt->HeartBeatIndex = pMqtt->pUser->GetTime(pMqtt->pUserHandle, 
+                                                  MQTT_USER_TIME_HEART_BEAT);
+    if(pMqtt->HeartBeatIndex < 1000) pMqtt->HeartBeatIndex = 1000;//最少10s
+    
+    pMqtt->SerializeLen = MQTTSerialize_pingreq(pMqtt->SerializeBuf,
+                                                MQTT_MNG_SERIALIZE_BUF_LEN);
+    _SendSerialize(pMqtt, PINGRESP);  
+  }  
+}
+
+
 //-------------------------10ms任务函数----------------------------------------
 void MqttMng_Task(struct _MqttMng *pMqtt)
 {
   if(pMqtt->Flag & MQTT_MNG_WORK_PAUSE) return; //暂停了
-  
+ 
+   _HeartBeatTask(pMqtt);//心跳报文处理
+
   if(pMqtt->WaitTimer){
     pMqtt->WaitTimer--;
     return; //等待时间未到
   }
-  
+
   //等待回应模式超时预处理
   if((_MstTypeInfo[pMqtt->eMsgTypes] & 0x80)){
-  pMqtt->RetryIndex++;
-    if(pMqtt->RetryIndex == 10) {
-      MqttMng_ErrToServerNotify();
-      pMqtt->WaitTimer = 255;    //最长等待时间以等待重新建立通讯
+    pMqtt->RetryIndex++;
+    if(pMqtt->RetryIndex == MQTT_MNG_NON_CONNECT_OV) {
+      MqttMng_ErrToServerNotify(pMqtt);
+      pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
+                                               MQTT_USER_TIME_RE_CONNECT);
       pMqtt->RetryIndex = 0;
       pMqtt->eMsgTypes = CONNECT; //重新连接
-    }
+    } 
   }
   
   _SendOrRcvOvPro(pMqtt); //定时接收超时处理

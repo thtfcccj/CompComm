@@ -51,14 +51,22 @@ struct _MqttUser{
                     const struct _MqttUserPublish *pRdPublish,
                      struct _MqttUserPublish *pWrPublish);  
 
-  unsigned short KeepAlive;  //保活时间，s为单位
+  //得到相关时间, TimeId见定义,返回时间单位见TimeId说明
+  unsigned short (*GetTime)(void *pUserHandle, unsigned char TimeId); 
 };
 
-//得到字符串类对像按组组织，每个分组返回的字符不可共用一个缓冲区, 具定义为:
+//TypeId的:得到字符串类对像按组组织，每个分组返回的字符不可共用一个缓冲区, 具定义为:
 //组0: 
 #define MQTT_USER_TYPE0_CLIENT_ID      0   //客户端ID号,返回NULL表示无
 #define MQTT_USER_TYPE0_USER_NAME      1   //用户登录的名称,返回NULL表示无
 #define MQTT_USER_TYPE0_USER_PASS      2   //用户登录的密码,返回NULL表示无
+
+//TimeId定义为:
+#define MQTT_USER_TIME_KEEP_ALIVE    0  //保活时间,       s为单位
+#define MQTT_USER_TIME_SERVER_RESP   1  //服务器响应时间, 10ms为单位
+#define MQTT_USER_TIME_HEART_BEAT    2  //心跳报间隔时间, 10ms为单位
+#define MQTT_USER_TIME_PERTROL_PEARIOD 3  //周期巡检包间隔时间, 10ms为单位
+#define MQTT_USER_TIME_RE_CONNECT    4  //等待外部TCP/IP连接时间, 10ms为单位
 
 /*******************************************************************************
                           相关函数

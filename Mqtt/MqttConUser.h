@@ -6,8 +6,18 @@
 #ifndef _MQTT_CON_USER_H
 #define _MQTT_CON_USER_H
 
+
 /*******************************************************************************
-                          阿里云MQTT协议支持
+                             默认协议支持时
+*******************************************************************************/
+//MqttConUserInfo中存储的信息定义为:
+//Cfg      = 0x0000     0x0000表示直接MQTT直接传输
+//UserName = MQTT认证时用户名 空是无用户认证
+//UserPass = MQTT认证时密码 空是无需密码
+//Info =     MQTTClient，空时缺省
+
+/*******************************************************************************
+                          阿里云MQTT协议支持时
 *******************************************************************************/
 //设备三元组,如:
 //productKey = a14Xib5kdYd
@@ -27,7 +37,7 @@
 //mqttClientId = SN1928339|securemode=3,signmethod=hmacsha1,timestamp=1539421321846|
 
 //MqttConUserInfo中存储的信息定义为:
-//Cfg      = 0x0000 | (securemode << 4) | signmethod  (0x0000表示阿里协议)
+//Cfg      = 0x2000 | (securemode << 4) | signmethod  (0x2000表示阿里协议)
 //UserName = mqttUsername(含deviceName&productKey)
 //UserPass = mqttPassword(生成的键值)
 //Info =     timestamp&deviceSecret
@@ -44,9 +54,9 @@
 *******************************************************************************/
 
 //相关长度，用户使用时,需<其-1
-#define MQTT_CON_USER_NAME_LEN  (48 + 1)   //用户名长度
-#define MQTT_CON_USER_PASS_LEN  (48 + 1)  //用户密码长度, 阿里用MD5码固定40个
-#define MQTT_CON_USER_INFO_LEN  (96 + 1)      //相关信息，透传时为客户端,否则为盐值
+#define MQTT_CON_USER_NAME_LEN  48   //用户名长度
+#define MQTT_CON_USER_PASS_LEN  48  //用户密码长度, 阿里用MD5码固定40个
+#define MQTT_CON_USER_INFO_LEN  96   //相关信息，透传时为客户端,否则为盐值
 
 /*******************************************************************************
                             相关结构
@@ -89,7 +99,7 @@ void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
 
 //-------------------------------设置配置位-------------------------------------
 void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
-                        unsigned char Cfg);
+                        unsigned short Cfg);
 
 //-----------------------------得到协议类型-------------------------------------
 #define  MqttConUser_GetProtocol(mqttConUser) \

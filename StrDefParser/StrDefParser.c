@@ -10,6 +10,7 @@ const char Ch_ShortContent[] =    "内容过短!";
 const char Ch_OK[] =             "操作成功!";
 const char Ch_CaplbilityOv[] =   "容量超限";
 const char Ch_NoFunCode[] =      "没有此指令！";
+const char Ch_NullString[] =     "字符未定义或空字符";
 
 const char Ch_ErrSave[] =        "保存数据时异常";
 const char Ch_ErrLogic[] =       "错误的逻辑代码";

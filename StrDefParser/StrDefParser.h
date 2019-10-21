@@ -10,6 +10,7 @@ extern const char Ch_ShortContent[];// =   "内容过短!";
 extern const char Ch_OK[];// =             "操作成功!";
 extern const char Ch_CaplbilityOv[];// =   "容量超限";
 extern const char Ch_NoFunCode[];// =      "没有此指令！";
+extern const char Ch_NullString[];// =      "字符未定义或空字符";
 
 extern const char Ch_ErrSave[];// =        "保存数据时异常";
 extern const char Ch_ErrLogic[];// =       "错误的逻辑代码";

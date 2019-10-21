@@ -8,10 +8,22 @@
 #include "InfoBase.h"
 #include "Eeprom.h"
 #include <string.h>
+#include "stringEx.h"
 
 /*******************************************************************************
                           相关函数实现
 *******************************************************************************/
+
+//-----------------------------重载Info----------------------------------
+static void _ReloadUInfo(struct _MqttConUser *pMqttConUser)
+{
+  //重新读取以更新MQTT通讯信息
+  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId),
+            &pMqttConUser->Info, 
+            sizeof(struct _MqttConUserInfo));
+  //转到MQTT通讯信息
+  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
+}
 
 //-----------------------------初始化函数---------------------------------------
 void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
@@ -25,27 +37,19 @@ void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
               &pMqttConUser->Info,
               sizeof(struct _MqttConUserInfo));
   }
-  else{
-    Eeprom_Rd(MqttConUser_GetInfoBase(AryId),
-              &pMqttConUser->Info,
-              sizeof(struct _MqttConUserInfo));
-    //防止存储异常，尾部强制加0
-    pMqttConUser->Info.UserName[MQTT_CON_USER_NAME_LEN - 1] = '\0';
-    pMqttConUser->Info.UserPass[MQTT_CON_USER_PASS_LEN - 1] = '\0';
-    pMqttConUser->Info.Info[MQTT_CON_USER_INFO_LEN - 1] = '\0';
-  }
+  else _ReloadUInfo(pMqttConUser);
 
-  //转到MQTT通讯信息
-  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
 }
 
 //-------------------------------设置配置位-------------------------------------
 void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
-                        unsigned char Cfg)
+                        unsigned short Cfg)
 {
   pMqttConUser->Info.Cfg = Cfg;
   Eeprom_Wr(MqttConUser_GetInfoBase(pMqttConUser->AryId) +
             struct_offset(struct _MqttConUserInfo, Cfg),  &Cfg, 2); 
+  
+  _ReloadUInfo(pMqttConUser);
 }
 
 //----------------------------Info存储信息查找表--------------------------------
@@ -65,8 +69,12 @@ static const unsigned char _InfoLen[] = {
 void MqttConUser_GetInfo(const struct _MqttConUser *pMqttConUser,
                          unsigned char Type, char *pBuf)
 {
-  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
-            _InfoBase[Type], pBuf, _InfoLen[Type]);  
+  //Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
+  //          _InfoBase[Type], pBuf, _InfoLen[Type]);  
+  //因字符串可能太大超退缓冲，使用只读指针模式
+  const unsigned char *pPos = pGetRdPoint(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
+                                  _InfoBase[Type], _InfoLen[Type]); 
+  strcpyEx(pBuf, (const char *)pPos, _InfoLen[Type]);
 }
 
 //----------------------------设置相关Info信息----------------------------------
@@ -76,16 +84,13 @@ void MqttConUser_SetInfo(struct _MqttConUser *pMqttConUser,
 {
   //错误检查
   if(Type > 3) return;
-  unsigned char Len = _InfoLen[Type];
-  if(strlen(pBuf) >= Len) *(pBuf + Len - 1) = '\0';//强制截断
+  unsigned char Len = strlen(pBuf) + 1; //含结束字符
+  if(Len > _InfoLen[Type]) Len = _InfoLen[Type];//超限
   //保存
   Eeprom_Wr(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
             _InfoBase[Type], pBuf, Len);
-  //重新读取以更新MQTT通讯信息
-  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId),
-            &pMqttConUser->Info, 
-            sizeof(struct _MqttConUserInfo));
-  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
+
+  _ReloadUInfo(pMqttConUser);
 }
 
 

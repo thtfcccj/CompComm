@@ -26,36 +26,46 @@ static const char _CfgWr[] = {"Cfg 0x"};
 const char *MqttConUserAT_pParser(struct _MqttConUser *pConUser,
                                    char *pContent)//要解析内容,ascii码
 {
+  //注：只能通过接口读写信息(直接存储的可能是经过处理的数据)
   //get响应处理
   const char *pNextPos = StrFind(pContent, "get");
   if(pNextPos != NULL){//找到了
-    if(pNextPos = StrFind(pContent,_Name)) 
-      return pConUser->Info.UserName;
-    else if(pNextPos = StrFind(pContent,_Pass)) 
-      return pConUser->Info.UserPass;
-    else if(pNextPos = StrFind(pContent,_Info)) 
-      return pConUser->Info.Info;
-    else if(pNextPos = StrFind(pContent,_CfgRd)){ //相关配置,十六进制表示,对齐相关
-      *pContent++ = '0';
-      *pContent++ = 'x';
-      *pDataToAsc(pContent, (unsigned char*)&pConUser->Info.Cfg, 2) = '\0';
+    if(StrFind(pNextPos,_Name) != NULL) 
+      MqttConUser_GetInfo(pConUser, 0, pContent);
+    else if(StrFind(pNextPos,_Pass) != NULL) 
+     MqttConUser_GetInfo(pConUser, 1, pContent);
+    else if(StrFind(pNextPos,_Info) != NULL) 
+      MqttConUser_GetInfo(pConUser, 2, pContent);
+    else if(StrFind(pNextPos,_CfgRd) != NULL){ //相关配置,十六进制表示,对齐相关
+      *pContent = '0';
+      *(pContent+ 1) = 'x';
+      unsigned char Cfg[2];
+      Cfg[0] = MqttConUser_GetCfg(pConUser) >>8;
+      Cfg[1] = MqttConUser_GetCfg(pConUser) & 0xff;     
+      *pDataToAsc(pContent + 2, Cfg, 2) = '\0';
       return pContent;
     }
-    else return Ch_NoFunCode;//没找到
+    else return NULL;//没找到
+    if(*pContent == '\0') return Ch_NullString; //未定义
+    return pContent;
   }
   //set响应处理
   pNextPos = StrFind(pContent, "set");
   if(pNextPos != NULL){//找到了
-    if(pNextPos = StrFind(pContent,_Name)) 
-      strcpyEx(pConUser->Info.UserName,pContent, MQTT_CON_USER_NAME_LEN - 1);
-    else if(pNextPos = StrFind(pContent,_Pass)) 
-      strcpyEx(pConUser->Info.UserPass, pContent, MQTT_CON_USER_PASS_LEN - 1);
-    else if(pNextPos = StrFind(pContent,_Info)) 
-      strcpyEx(pConUser->Info.Info, pContent, MQTT_CON_USER_INFO_LEN - 1);
-    else if(pNextPos = StrFind(pContent,_CfgWr)){ //相关配置,十六进制表示,对齐相关
-      AscToData((unsigned char*)&pConUser->Info.Cfg, (unsigned char*)pContent, 4);
+    const char *pDataPos;
+    if((pDataPos = StrFind(pNextPos,_Name)) != NULL)
+      MqttConUser_SetInfo(pConUser, 0, (char*)pGetStrSpaceEnd(pDataPos));
+    else if((pDataPos = StrFind(pNextPos,_Pass)) != NULL)
+      MqttConUser_SetInfo(pConUser, 1, (char*)pGetStrSpaceEnd(pDataPos));
+    else if((pDataPos = StrFind(pNextPos,_Info)) != NULL)
+      MqttConUser_SetInfo(pConUser, 2, (char*)pGetStrSpaceEnd(pDataPos));
+    else if((pDataPos = StrFind(pNextPos,_CfgWr)) != NULL){//相关配置,十六进制表示
+      unsigned char Cfg[2];
+      AscToData(Cfg, (unsigned char*)pGetStrSpaceEnd(pDataPos), 4);
+      MqttConUser_SetCfg(pConUser, (unsigned short)Cfg[0] << 8 | Cfg[1]);
     }
-    else return Ch_NoFunCode;//没找到
+    else return NULL;//没找到
+    return Ch_OK;//操作成功
   }
   return NULL;
 }

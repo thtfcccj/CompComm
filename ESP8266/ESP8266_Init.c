@@ -18,7 +18,7 @@
 //--------------------------填充本地IP------------------------------------
 //pStr字样:+CIFSR:STAIP,"192.168.88.152"+CIFSRSTAMAC,
 const char En_DotDp[] =                 {",\""};
-static void _FullLocalIp(char *pStr)
+static void _FullLocalIp(const char *pStr)
 {
   pStr = StrFind(pStr, En_DotDp);
   if(pStr == NULL) return; //异常

@@ -22,6 +22,11 @@
   #define MQTT_MNG_USER_PAYLOAD_LEN     128   
 #endif
 
+#ifndef MQTT_MNG_NON_CONNECT_OV//无连接次数计数，超过时重连
+  #define MQTT_MNG_NON_CONNECT_OV        10  
+#endif
+
+
 /*******************************************************************************
                             相关结构
 *******************************************************************************/
@@ -62,8 +67,9 @@ struct _MqttMng{
   //状态相关：
   enum msgTypes  eMsgTypes;             //消息类型
   unsigned char SubState;              //消息类型对应子状态
-  unsigned char WaitTimer;            //各状态超时等待定时器，10ms为单位
   unsigned char RetryIndex;           //相关状态重试次数
+  unsigned char SocketId;              //用于通讯
+  
   //用户交互相关：
   const struct _MqttUser *pUser;    //带入的用户信息
   void *pUserHandle;                 //用户信息需要的句柄
@@ -75,6 +81,9 @@ struct _MqttMng{
   signed short SerializeLen;            //序列化后的有效数据个数,负值见MQTT定义
   unsigned short PacketIdIndex;         //包计数器
   unsigned short CuPacketId;           //当前正在操作包的ID号
+  
+  unsigned short WaitTimer;            //各状态超时等待定时器，10ms为单位   
+  unsigned short HeartBeatIndex;       //心跳报文,用于与服务器保持连接并识别服务器是否掉线
   signed char Err;      //错误标志
   unsigned char Flag;  //相关标志，见定义
 };
@@ -86,7 +95,6 @@ struct _MqttMng{
 #define MQTT_MNG_TYPE_PUBLISH_RCVER    0x10   //发布消息时现在为接收者，否则为发送者
 
 #define MQTT_MNG_WORK_PAUSE            0x08   //工作暂停标志
-#define MQTT_MNG_ARY_SOCK_ID_MASK       0x07   //SockId
 
 /*******************************************************************************
                           相关函数
@@ -97,10 +105,9 @@ void MqttMng_Init(struct _MqttMng *pMqtt,
                   const struct _MqttUser *pUser,   //带入的用户信息
                   void *pUserHandle);               //用户信息需要的句柄
 
-
-//-------------------------更新SockId----------------------------------------
-void MqttMng_UdatetSockId(struct _MqttMng *pMqtt,
-                          unsigned char SockId);
+//-------------------------更新SocketId--------------------------------------
+#define MqttMng_UdatetSocketId(mqtt,socketId) \
+  do{(mqtt)->SocketId = socketId; }while(0)
 
 //--------------------------暂停与继续---------------------------------------
 #define MqttMng_IsPause(mqtt) ((mqtt)->Flag & MQTT_MNG_WORK_PAUSE)
@@ -123,9 +130,9 @@ void MqttMng_Task(struct _MqttMng *pMqtt);
                               回调函数
 *******************************************************************************/
 
-//---------------------------------通讯无法与MQTT服务器通讯---------------------
-//void MqttMng_ErrToServerNotify(void);
-#define MqttMng_ErrToServerNotify() do{}while(0)
+//----------------------------通讯无法与MQTT服务器通讯--------------------------
+//void MqttMng_ErrToServerNotify(const struct _MqttMng *pMqtt);
+#define MqttMng_ErrToServerNotify(pmqtt) do{}while(0)
 
 
 #endif //MQTT_MNG_H
