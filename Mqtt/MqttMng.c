@@ -163,11 +163,12 @@ static void _PublishRcvPro(struct _MqttMng *pMqtt)
 {
   struct _MqttUserPublish *pRdPublishBuf;
   //收到数据先反序列化并处理
+  int RcvQoS;
   if(pMqtt->Flag & MQTT_MNG_TYPE_PUBLISH_RCVED){
     pMqtt->Flag &= ~MQTT_MNG_TYPE_PUBLISH_RCVED;//处理了
     unsigned short CuPacketId;
     if(MQTTDeserialize_publish(&pMqtt->Buf.RdPublish.Dup,
-                               &pMqtt->Buf.RdPublish.QoS,
+                               &RcvQoS,
                                &pMqtt->Buf.RdPublish.Retained, 
                                &CuPacketId, 
                                &pMqtt->Buf.RdPublish.TopicName,
@@ -178,17 +179,17 @@ static void _PublishRcvPro(struct _MqttMng *pMqtt)
       pMqtt->RetryIndex++;
       return;
     }
+    pMqtt->Buf.RdPublish.QoS = RcvQoS;
     pRdPublishBuf = &pMqtt->Buf.RdPublish;
     pMqtt->CuPacketId = CuPacketId;//留存待用
     
   }
   else{//为周期调用
+    RcvQoS = 0;//后期条件
     pRdPublishBuf = NULL;
     pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
                                              MQTT_USER_TIME_PERTROL_PEARIOD);
   }
-  //交由用户处理之前先缓冲需要的pRdPublishBuf内需析资源防止被覆盖掉
-  unsigned char RcvQoS = pRdPublishBuf->QoS;
   
   //交由用户处理
   pMqtt->WrPublishBuf.pPayload = pMqtt->Buf.WrPublishPayloadBuf;//指向填入数据缓冲
@@ -203,9 +204,7 @@ static void _PublishRcvPro(struct _MqttMng *pMqtt)
       _PublishAckSend(pMqtt, PUBACK, PUBLISH,  0);//作为接收者,回完就结束了。
     else if(RcvQoS == 2)//确认收到数据的客户端,回复已记录
       _PublishAckSend(pMqtt, PUBREC, PUBREL,  0);//作为接收者，转入等持释放信号
-    else RcvQoS = 0;//防止异常
   }
-  else RcvQoS = 0;
   
   if(pMqtt->WrPublishBuf.PayloadLen){//有数据缓冲时
     if(RcvQoS == 0) _PublishSend(pMqtt, 0); //直接发布
@@ -421,7 +420,8 @@ void MqttMng_Task(struct _MqttMng *pMqtt)
   //等待回应模式超时预处理
   if((_MstTypeInfo[pMqtt->eMsgTypes] & 0x80)){
     pMqtt->RetryIndex++;
-    if(pMqtt->RetryIndex == MQTT_MNG_NON_CONNECT_OV) {
+    if(pMqtt->RetryIndex >= //大于重试次数，网断开了,需重连
+       pMqtt->pUser->GetTime(pMqtt->pUserHandle,MQTT_USER_TIME_RETRY_COUNT)) {
       MqttMng_ErrToServerNotify(pMqtt);
       pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
                                                MQTT_USER_TIME_RE_CONNECT);

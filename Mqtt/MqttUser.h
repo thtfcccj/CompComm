@@ -67,7 +67,7 @@ struct _MqttUser{
 #define MQTT_USER_TIME_HEART_BEAT    2  //心跳报间隔时间, 10ms为单位
 #define MQTT_USER_TIME_PERTROL_PEARIOD 3  //周期巡检包间隔时间, 10ms为单位
 #define MQTT_USER_TIME_RE_CONNECT    4  //等待外部TCP/IP连接时间, 10ms为单位
-
+#define MQTT_USER_TIME_RETRY_COUNT   5  //无应答时，重试次数
 /*******************************************************************************
                           相关函数
 *******************************************************************************/
