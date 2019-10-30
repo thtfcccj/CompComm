@@ -54,9 +54,9 @@ void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
 
 //----------------------------Info存储信息查找表--------------------------------
 static const unsigned short _InfoBase[] = {
-  struct_offset(struct _MqttConUserInfo, UserName),//用户名
-  struct_offset(struct _MqttConUserInfo, UserPass),//用户密码 
-  struct_offset(struct _MqttConUserInfo, Info),    //相关信息   
+  0,                      //struct_offset(struct _MqttConUserInfo, UserName),//用户名
+  MQTT_CON_USER_NAME_LEN, //struct_offset(struct _MqttConUserInfo, UserPass),//用户密码 
+  MQTT_CON_USER_PASS_LEN, //struct_offset(struct _MqttConUserInfo, Info),    //相关信息   
 };
 
 static const unsigned char _InfoLen[] = {
@@ -69,12 +69,9 @@ static const unsigned char _InfoLen[] = {
 void MqttConUser_GetInfo(const struct _MqttConUser *pMqttConUser,
                          unsigned char Type, char *pBuf)
 {
-  //Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
-  //          _InfoBase[Type], pBuf, _InfoLen[Type]);  
-  //因字符串可能太大超退缓冲，使用只读指针模式
-  const unsigned char *pPos = pGetRdPoint(MqttConUser_GetInfoBase(pMqttConUser->AryId) + 
-                                  _InfoBase[Type], _InfoLen[Type]); 
-  strcpyEx(pBuf, (const char *)pPos, _InfoLen[Type]);
+  //直接从EEPROM中读取防止读取到中间值
+  Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) +  _InfoBase[Type], 
+            pBuf, _InfoLen[Type]);
 }
 
 //----------------------------设置相关Info信息----------------------------------
