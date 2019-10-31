@@ -6,6 +6,9 @@
 
 #include "StrDefParser.h"
 
+const char En_get[] =        "get";
+const char En_set[] =      "set";
+
 const char Ch_ShortContent[] =    "内容过短!";
 const char Ch_OK[] =             "操作成功!";
 const char Ch_CaplbilityOv[] =   "容量超限";

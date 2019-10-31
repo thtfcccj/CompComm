@@ -6,6 +6,9 @@
 #ifndef __STR_DEF_PARSER_H
 #define	__STR_DEF_PARSER_H
 
+extern const char En_get[];// =        "get";
+extern const char En_set[];// =      "set";
+
 extern const char Ch_ShortContent[];// =   "内容过短!";
 extern const char Ch_OK[];// =             "操作成功!";
 extern const char Ch_CaplbilityOv[];// =   "容量超限";

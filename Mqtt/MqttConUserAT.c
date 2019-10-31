@@ -28,7 +28,7 @@ const char *MqttConUserAT_pParser(struct _MqttConUser *pConUser,
 {
   //注：只能通过接口读写信息(直接存储的可能是经过处理的数据)
   //get响应处理
-  const char *pNextPos = StrFind(pContent, "get");
+  const char *pNextPos = StrFind(pContent, En_get);
   if(pNextPos != NULL){//找到了
     if(StrFind(pNextPos,_Name) != NULL) 
       MqttConUser_GetInfo(pConUser, 0, pContent);
@@ -50,7 +50,7 @@ const char *MqttConUserAT_pParser(struct _MqttConUser *pConUser,
     return pContent;
   }
   //set响应处理
-  pNextPos = StrFind(pContent, "set");
+  pNextPos = StrFind(pContent, En_set);
   if(pNextPos != NULL){//找到了
     const char *pDataPos;
     if((pDataPos = StrFind(pNextPos,_Name)) != NULL)
