@@ -22,7 +22,7 @@ static void _ReloadUInfo(struct _MqttConUser *pMqttConUser)
             &pMqttConUser->Info, 
             sizeof(struct _MqttConUserInfo));
   //转到MQTT通讯信息
-  if(pMqttConUser->Info.Cfg) MqttConUser_cbToMqttConInfo(pMqttConUser);
+  MqttConUser_cbToMqttConInfo(pMqttConUser);
 }
 
 //-----------------------------初始化函数---------------------------------------
