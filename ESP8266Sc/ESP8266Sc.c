@@ -51,7 +51,7 @@ void ESP8266Sc_ReConfigStart(unsigned char IsSmartConn)
 //0x20:要检查接收, 0x10接收OK检查
 static const unsigned char _StateInfo[] = {
   0x00 | 0x00 | 0x00 | 0x00 | 0x00,   //空闲状态
-  0x40 | 0x00 | 0x00 | 0x00 | 0x00,   //退出透传模式
+  0x00 | 0x00 | 0x00 | 0x00 | 0x00,   //退出透传模式
   0x80 | 0x00 | 0x00 | 0x00 | 0x00,   //复位
   0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //关闭回显,返回OK确认模块存在
   0x80 | 0x20 | 0x10 | 0x00 | 0x00,   //置Statin模式,返回OK成功
@@ -67,23 +67,23 @@ static const unsigned char _StateInfo[] = {
 //按位定义为：0-3Bit:正确时下一状态， 4-7Bit 错误时下一状态
 //0x20:要检查接收, 0x10接收OK检查，否则为程序检查, 0x0f下次状态
 static const unsigned char _State2State[] = {
-  ESP8266Sc_eIdie     | ESP8266Sc_eIdie,         //空闲状态
-  ESP8266Sc_eExitPass | ESP8266Sc_eRst,          //退出透传模式
-  ESP8266Sc_eExitPass | ESP8266Sc_eIsRdy,        //复位
-  ESP8266Sc_eExitPass | ESP8266Sc_eSetStation,   //关闭回显,返回OK确认模块存在
-  ESP8266Sc_eRst      | ESP8266Sc_eIsConn,       //置Statin模式,返回OK成功
-  ESP8266Sc_eIsConn   | ESP8266Sc_eSetServer,    //获取本地IP地址以确定与服务器已连接
-  ESP8266Sc_eRst      | ESP8266Sc_eSetServer,    //转入智能配网模式,等待OK字样
-  ESP8266Sc_eSetServer| ESP8266Sc_eSetPass,      //配置服务器,返回connect成功
-  ESP8266Sc_eSetPass  | ESP8266Sc_eStartPass,    //设置为透传模式,返回OK成功
-  ESP8266Sc_eSetPass  | ESP8266Sc_ePassData1st,  //开始透传
-  //ESP8266Sc_eIdie     | ESP8266Sc_eIdie,         //透传开始后的首个固定数据  
+  (ESP8266Sc_eIdie << 4)     | ESP8266Sc_eIdie,         //空闲状态
+  (ESP8266Sc_eExitPass << 4) | ESP8266Sc_eRst,          //退出透传模式
+  (ESP8266Sc_eExitPass << 4) | ESP8266Sc_eIsRdy,        //复位
+  (ESP8266Sc_eExitPass << 4) | ESP8266Sc_eSetStation,   //关闭回显,返回OK确认模块存在
+  (ESP8266Sc_eRst << 4)      | ESP8266Sc_eIsConn,       //置Statin模式,返回OK成功
+  (ESP8266Sc_eIsConn << 4)   | ESP8266Sc_eSetServer,    //获取本地IP地址以确定与服务器已连接
+  (ESP8266Sc_eRst << 4)      | ESP8266Sc_eSetServer,    //转入智能配网模式,等待OK字样
+  (ESP8266Sc_eSetServer << 4)| ESP8266Sc_eSetPass,      //配置服务器,返回connect成功
+  (ESP8266Sc_eSetPass << 4)  | ESP8266Sc_eStartPass,    //设置为透传模式,返回OK成功
+  (ESP8266Sc_eSetPass << 4)  | ESP8266Sc_ePassData1st,  //开始透传
+  //(ESP8266Sc_eIdie << 4)     | ESP8266Sc_eIdie,         //透传开始后的首个固定数据  
 };
 
 //--------------------------等待信息转换为时间----------------------------------
-static const unsigned char _WaitInfo2Time[] = {
-  0,//0:不等，
-  3,  //1等待通讯回应(发发送ATE0，将直接获得响应)
+static const unsigned char _WaitInfo2Time[] = {//128ms为单位,含发送时间
+  2,  //0等待发送完成
+  8,  //1等待通讯应答，(如发送ATE0)
   15, //等待工作响应(如复位)
   255,// 3等待用户响应(如智能配网)
 };
@@ -225,7 +225,7 @@ signed char ESP8266Sc_RcvData(const unsigned char *pData,
     }
   }
   //结束处理
-  if(pStr != NULL) _ToNextState(0);  
+  if(pStr != NULL) _ToNextState(0);
   else ESP8266Sc.Timer = 0;//提前结束
   return 1;
 }
