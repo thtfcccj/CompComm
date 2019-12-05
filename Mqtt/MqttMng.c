@@ -425,9 +425,11 @@ void MqttMng_Task(struct _MqttMng *pMqtt)
       MqttMng_ErrToServerNotify(pMqtt);
       pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
                                                MQTT_USER_TIME_RE_CONNECT);
+      if(pMqtt->WaitTimer == 0) //手动控制时暂停
+        pMqtt->Flag |= MQTT_MNG_WORK_PAUSE;
       pMqtt->RetryIndex = 0;
       pMqtt->eMsgTypes = CONNECT; //重新连接
-    } 
+    }
   }
   
   _SendOrRcvOvPro(pMqtt); //定时接收超时处理
