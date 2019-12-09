@@ -64,7 +64,7 @@ static const unsigned char _StateInfo[] = {
   0xc0 | 0x20 | 0x00 | 0x00 | 0x00,   //配置服务器,返回connect成功
                                      //(智能配网退出后此步时间较长,重试多次才能进入)
   0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //设置为透传模式,返回OK成功
-  0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //开始透传
+  0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //开始透传,返回OK成功,并以>开始
   0x80 | 0x00 | 0x00 | 0x00 | 0x00,  //透传开始后的首个固定数据
 };
 
@@ -81,7 +81,7 @@ static const unsigned char _State2State[] = {
   (ESP8266Sc_eRst << 4)      | ESP8266Sc_eSetServer,    //转入智能配网模式,等待OK字样
   (ESP8266Sc_eSetServer << 4)| ESP8266Sc_eSetPass,      //配置服务器,返回connect成功
   (ESP8266Sc_eSetPass << 4)  | ESP8266Sc_eStartPass,    //设置为透传模式,返回OK成功
-  (ESP8266Sc_eSetPass << 4)  | ESP8266Sc_ePassData1st,  //开始透传
+  (ESP8266Sc_eExitPass << 4)  | ESP8266Sc_ePassData1st,  //开始透传,若未确认，必须重新开始以退出
   //(ESP8266Sc_eIdie << 4)     | ESP8266Sc_eIdie,         //透传开始后的首个固定数据  
 };
 
@@ -232,7 +232,7 @@ static const char _CONNECT[] =  {"CONNECT"};//服务器连接成功标志
 static const char _DotDp[] =       {",\""}; //用于检查格式
 static const char _NullIp[] =      {"0.0"}; //示例：MISTAIP,"0.0.0.0"表示无IP
 static const char _ctedWifi[] =      {"cted"}; //配网成功后会提示：smartconfig connected wifi
-static const char _PassEnter[] = {"\r\n>"};        //开始透传标志
+static const char _PassEnter[] =   {">"};        //开始透传标志\r\n
 
 //--------------------------接收数据处理----------------------------------
 //返回0没处理,否则处理完成
@@ -258,6 +258,9 @@ signed char ESP8266Sc_RcvData(const unsigned char *pData,
       ESP8266Sc_cbEnterSmartConnNotify();//进入通报
       return 1;
     }
+    if(ESP8266Sc.eState == ESP8266Sc_eStartPass){//开始透传时可能错过OK,检查起始
+      if(pStr == NULL) pStr = StrFind((const char *)pData, _PassEnter);
+    }
   }
   else if(ESP8266Sc.eState == ESP8266Sc_eSetServer)//设置服务器时
     pStr = StrFind(pStr, _CONNECT);
@@ -272,6 +275,10 @@ signed char ESP8266Sc_RcvData(const unsigned char *pData,
       }
     }
   }
+  // else if(ESP8266Sc.eState == ESP8266Sc_eStartPass){//开始透传时
+  //  pStr = StrFind(pStr, _PassEnter);//开始透传时
+  //}
+  
   //结束处理
   if(pStr != NULL) _ToNextState(0);
   else ESP8266Sc.Timer = 0;//提前结束

@@ -5,7 +5,14 @@
 *******************************************************************************/
 #include "MqttMng.h"
 #include "transport.h"
-#include <string.h>
+
+#ifdef SUPPORT_PIC //memcpy会出错导致内存泄露！！！
+  #include "stringEx.h"
+  #define memcpyP(a,b,l) memcpyL((char*)a,(const char*)b,l)
+#else //
+  #include <string.h>
+  #define memcpyP(a,b,l) memcpy(a,b,l)
+#endif
 
 static const MQTTPacket_connectData _connectDataDefault =  
   MQTTPacket_connectData_initializer;
@@ -73,7 +80,7 @@ static void _ConnectSend(struct _MqttMng *pMqtt)
 {
   //先序列化数据
 	MQTTPacket_connectData *pData = &pMqtt->Buf.Connect;
-  memcpy(pData, &_connectDataDefault, sizeof(MQTTPacket_connectData));
+  memcpyP(pData, &_connectDataDefault, sizeof(_connectDataDefault));//Pic中sizeof(MQTTPacket_connectData会内存溢出))
 	pData->clientID.cstring = pMqtt->pUser->pGetString(pMqtt->pUserHandle,
                                                      MQTT_USER_TYPE0_CLIENT_ID);
 	pData->keepAliveInterval = pMqtt->pUser->GetTime(pMqtt->pUserHandle, 
@@ -133,12 +140,12 @@ static void _PublishSend(struct _MqttMng *pMqtt,
                                                pMqtt->WrPublishBuf.PayloadLen);
   //获得下一状态
   enum msgTypes NextMsgTypes;
-  if(pMqtt->WrPublishBuf.QoS == 0) //QoS1发送完不确认,保持此状态
-    NextMsgTypes = PUBLISH;
+  if(pMqtt->WrPublishBuf.QoS == 2) //QoS2为服务器记录上了，等待记录确认
+    NextMsgTypes = PUBREC;
   else if(pMqtt->WrPublishBuf.QoS == 1) //QoS1,服务器收到后,等待应答确认
     NextMsgTypes = PUBACK;
-  else //QoS2为服务器记录上了，等待记录确认
-    NextMsgTypes = PUBREC;    
+  else //其它为QoS0发送完不确认,保持此状态
+    NextMsgTypes = PUBLISH;    
   _SendSerialize(pMqtt, NextMsgTypes); //发送并转到等待订阅应答模式
 }
 
@@ -198,7 +205,7 @@ static void _PublishRcvPro(struct _MqttMng *pMqtt)
                            pRdPublishBuf,
                            &pMqtt->WrPublishBuf);
   
-  //收到发布数据时检查并回应应答
+  //收到发布数据时检查并先回应应答(不管是否回数)
   if(pRdPublishBuf != NULL){
     if(RcvQoS == 1)//确认收到了
       _PublishAckSend(pMqtt, PUBACK, PUBLISH,  0);//作为接收者,回完就结束了。
@@ -260,6 +267,10 @@ static void _SendOrRcvOvPro(struct _MqttMng *pMqtt)
       pMqtt->HeartBeatIndex = 1;//直接重试
       break;
   }
+  
+  #ifdef SUPPORT_MQTT_MNG_RCV_LATER
+    pMqtt->Flag |= MQTT_MNG_EN_RCV;
+  #endif
 }
 
 
@@ -297,10 +308,26 @@ void MqttMng_RcvPro(struct _MqttMng *pMqtt,
                     unsigned short RcvLen,   //收到的数据长度
                     unsigned short BufSize) //缓冲区大小
 {
+  #ifdef SUPPORT_MQTT_MNG_RCV_LATER
+  if(!(pMqtt->Flag & MQTT_MNG_EN_RCV)) return;//不允许接收
+    pMqtt->Flag &= ~MQTT_MNG_EN_RCV;
+    memcpyL(pMqtt->SerializeBuf,pData, RcvLen); //缓冲到预列化中稍后处理
+    pMqtt->SerializeLen = RcvLen;
+    pMqtt->Flag |= MQTT_MNG_BUF_RCV;
+    
+  }//end MqttMng_RcvPro()
+  //========================接收稍后处理函数========================
+  //放在快速任务MQTT_MNG_BUF_RCV置位时调用
+  void MqttMng_RcvLater(struct _MqttMng *pMqtt){
+    unsigned char *pData = pMqtt->SerializeBuf;
+    unsigned short RcvLen = pMqtt->SerializeLen;
+    //继续原MqttMng_RcvPro()内部执行.....
+  #endif
+  //===========================接收处理程序段=======================
   //发布模式收到发布来的消息单独处理
   if(pMqtt->eMsgTypes == PUBLISH){
     if(RcvLen > pMqtt->SerializeLen) RcvLen = pMqtt->SerializeLen;
-    memcpy(pMqtt->SerializeBuf,pData, RcvLen); //缓冲到预列化中稍后处理
+    memcpyL(pMqtt->SerializeBuf,pData, RcvLen); //缓冲到预列化中稍后处理
     //继续处理                        
     pMqtt->Flag |= MQTT_MNG_TYPE_CONTINUE | MQTT_MNG_TYPE_PUBLISH_RCVED;
     return;
@@ -364,6 +391,9 @@ _RcvNorEnd: //正确接收时
 /*******************************************************************************
                              相关函数
 *******************************************************************************/
+
+#include <string.h>
+
 //----------------------------初始化函数----------------------------------------
 void MqttMng_Init(struct _MqttMng *pMqtt,
                   const struct _MqttUser *pUser,    //带入的用户信息
@@ -378,10 +408,17 @@ void MqttMng_Init(struct _MqttMng *pMqtt,
 //-------------------------快速任务函数----------------------------------------
 void MqttMng_FastTask(struct _MqttMng *pMqtt)
 {
+  //先处理缓冲
+  #ifdef SUPPORT_MQTT_MNG_RCV_LATER
+  if(pMqtt->Flag & MQTT_MNG_BUF_RCV){
+    pMqtt->Flag &= ~MQTT_MNG_BUF_RCV;
+    MqttMng_RcvLater(pMqtt);
+  }
+  #endif
+  
   if(pMqtt->Flag & MQTT_MNG_TYPE_CONTINUE){
     pMqtt->Flag &= ~MQTT_MNG_TYPE_CONTINUE;
     _SendOrRcvOvPro(pMqtt); //立即处理
-    
   }
 }
 
@@ -426,13 +463,20 @@ void MqttMng_Task(struct _MqttMng *pMqtt)
       pMqtt->WaitTimer = pMqtt->pUser->GetTime(pMqtt->pUserHandle,
                                                MQTT_USER_TIME_RE_CONNECT);
       if(pMqtt->WaitTimer == 0) //手动控制时暂停
-        pMqtt->Flag |= MQTT_MNG_WORK_PAUSE;
+        pMqtt->Flag = MQTT_MNG_WORK_PAUSE;
+      else pMqtt->Flag = 0;
       pMqtt->RetryIndex = 0;
-      pMqtt->eMsgTypes = CONNECT; //重新连接
+      pMqtt->eMsgTypes = 0; //重新连接
+      return;
     }
   }
-  
-  _SendOrRcvOvPro(pMqtt); //定时接收超时处理
+   
+  //定时接收超时处理
+  #ifdef SUPPORT_MQTT_MNG_RCV_LATER //去锁定标志
+    pMqtt->Flag &= ~(MQTT_MNG_BUF_RCV | MQTT_MNG_EN_RCV);
+  #endif
+
+  _SendOrRcvOvPro(pMqtt); 
 }
 
 

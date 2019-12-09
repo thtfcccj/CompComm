@@ -33,12 +33,12 @@ void MqttConUser_Init(struct _MqttConUser *pMqttConUser,
   memset(pMqttConUser, 0, sizeof(struct _MqttConUser));
   pMqttConUser->AryId = AryId;
   if(!Inited){
+    MqttConUser_cbInitInfo(&pMqttConUser->Info);
     Eeprom_Wr(MqttConUser_GetInfoBase(AryId),
               &pMqttConUser->Info,
               sizeof(struct _MqttConUserInfo));
   }
-  else _ReloadUInfo(pMqttConUser);
-
+  _ReloadUInfo(pMqttConUser);
 }
 
 //-------------------------------设置配置位-------------------------------------
@@ -53,10 +53,11 @@ void MqttConUser_SetCfg(struct _MqttConUser *pMqttConUser,
 }
 
 //----------------------------Info存储信息查找表--------------------------------
+//struct_offset(struct _MqttConUserInfo, UserPass)部分编译器会出错
 static const unsigned short _InfoBase[] = {
-  0,                      //struct_offset(struct _MqttConUserInfo, UserName),//用户名
-  MQTT_CON_USER_NAME_LEN, //struct_offset(struct _MqttConUserInfo, UserPass),//用户密码 
-  MQTT_CON_USER_PASS_LEN, //struct_offset(struct _MqttConUserInfo, Info),    //相关信息   
+   2,                      //用户名,前面为cfg
+  (2 + MQTT_CON_USER_NAME_LEN), //用户密码 
+  (2 + MQTT_CON_USER_NAME_LEN + MQTT_CON_USER_PASS_LEN),//相关信息   
 };
 
 static const unsigned char _InfoLen[] = {
@@ -70,8 +71,10 @@ void MqttConUser_GetInfo(const struct _MqttConUser *pMqttConUser,
                          unsigned char Type, char *pBuf)
 {
   //直接从EEPROM中读取防止读取到中间值
+  unsigned char Len = _InfoLen[Type];
   Eeprom_Rd(MqttConUser_GetInfoBase(pMqttConUser->AryId) +  _InfoBase[Type], 
-            pBuf, _InfoLen[Type]);
+            pBuf, Len);
+  *(pBuf + Len - 1) = '\0';//强制增加结束字符
 }
 
 //----------------------------设置相关Info信息----------------------------------

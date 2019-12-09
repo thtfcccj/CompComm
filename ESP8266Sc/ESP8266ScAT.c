@@ -19,8 +19,8 @@
 		                        相关函数
 ******************************************************************************/
 //------------------------------相关字符----------------------------------
-static const char _ServerIp[] = {"sIp"};
-static const char _ServerPort[] = {"sPort"};
+static const char _ServerIp[] = {"Ip"};
+static const char _ServerPort[] = {"Port"};
 
  #ifdef SUPPORT_ESP8266SC_LOCAL_IP//保存本地IP时
   static const char _LocalIp[] = {"lIp"};

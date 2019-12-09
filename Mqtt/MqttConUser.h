@@ -122,6 +122,10 @@ void MqttConUser_SetInfo(struct _MqttConUser *pMqttConUser,
                           相关回调函数
 *******************************************************************************/
 
+//-------------------------------Info置初始化值函数-----------------------------
+//在系统初始化时调用,此函数调用前pInfo内容已置0
+void MqttConUser_cbInitInfo(struct _MqttConUserInfo *pInfo);
+
 //-----------------------根据通讯协议到Mqtt连接信息处理-------------------------
 //Info里是读出的密码，加密后放回原处
 void MqttConUser_cbToMqttConInfo(struct _MqttConUser *pMqttConUser);
