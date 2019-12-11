@@ -52,19 +52,19 @@ void ESP8266Sc_ReConfigStart(unsigned char IsSmartConn)
 
 //---------------------------状态信息位-----------------------------------
 //按位定义为：//0xC0:等待状态(0:不等，1等待通讯回应，2等待工作响应，3等待用户响应) 
-//0x20:要检查接收, 0x10接收OK检查
+//0x20:要检查接收, 0x10接收OK检查, 0x08 超时不重试直接进入下一模式
 static const unsigned char _StateInfo[] = {
   0x00 | 0x00 | 0x00 | 0x00 | 0x00,   //空闲状态
   0x00 | 0x00 | 0x00 | 0x00 | 0x00,   //退出透传模式
-  0xC0 | 0x00 | 0x00 | 0x00 | 0x00,   //复位
+  0xC0 | 0x20 | 0x00 | 0x08 | 0x00,   //复位
   0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //关闭回显,返回OK确认模块存在
   0x80 | 0x20 | 0x10 | 0x00 | 0x00,   //置Statin模式,返回OK成功
   0x40 | 0x20 | 0x00 | 0x00 | 0x00,   //获取本地IP地址以确定wifi已连接
   0x80 | 0x20 | 0x10 | 0x00 | 0x00,   //转入智能配网模式,等待OK字样
-  0xc0 | 0x20 | 0x00 | 0x00 | 0x00,   //配置服务器,返回connect成功
+  0xC0 | 0x20 | 0x00 | 0x00 | 0x00,   //配置服务器,返回connect成功
                                      //(智能配网退出后此步时间较长,重试多次才能进入)
   0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //设置为透传模式,返回OK成功
-  0x40 | 0x20 | 0x10 | 0x00 | 0x00,   //开始透传,返回OK成功,并以>开始
+  0x80 | 0x20 | 0x10 | 0x00 | 0x00,   //开始透传,返回OK成功,并以>开始
   0x80 | 0x00 | 0x00 | 0x00 | 0x00,  //透传开始后的首个固定数据
 };
 
@@ -89,8 +89,8 @@ static const unsigned char _State2State[] = {
 static const unsigned char _WaitInfo2Time[] = {//128ms为单位,含发送时间
   2,  //0等待发送完成
   8,  //1等待通讯应答，(如发送ATE0)
-  35, //等待工作响应
-  100,// 3等待长时工作响应(如非配网模式复位,此时会连WIFI并成功以及获得IP,应多等会)
+  36, //等待工作响应
+  200,// 3等待长时工作响应(如非配网模式复位,此时会连WIFI并成功以及获得IP,应多等会)
 };
 
 //-----------------------状态机对应的指令字符串定义-----------------------------
@@ -146,8 +146,10 @@ static void _ToNextState(unsigned char IsErr)
       (ESP8266Sc.eState == ESP8266Sc_eIsConn) && !(ESP8266Sc.Flag & ESP8266SC_WIFI_FINAL)){
       ESP8266Sc.eState = ESP8266Sc_eSmartConn;
     }
-    else //正确时，下一状态
+    else{ //正确时，下一状态
       ESP8266Sc.eState = (enum _ESP8266Sc_eState)(NextState & 0x0f);
+      ESP8266Sc.ErrIndex = 0;//总故障状态复位
+    }
   }
   ESP8266Sc.RetryIndex = 0;//下一状态复位
   ESP8266Sc.Flag |= ESP8266SC_SEND_RDY;//下一状态处理    
@@ -168,10 +170,15 @@ void ESP8266Sc_Task(void)
   
   //等待时间到了，检查超时情况
   unsigned char Info = _StateInfo[ESP8266Sc.eState];
-  if(Info & 0x20){//需检查接收时超时了
+  if((Info & 0x28) == 0x20){//需检查接收时且没有禁止超时检查时进入
     ESP8266Sc.RetryIndex++;
-    //超过次数转错误状态
-    if(ESP8266Sc.RetryIndex >= ESP8266SC_RETRY_COUNT) _ToNextState(1);
+    ESP8266Sc.ErrIndex++;
+    if(ESP8266Sc.ErrIndex >= ESP8266SC_ERR_COUNT){ //总故障连续超时了,重新开始
+      ESP8266Sc.eState = ESP8266Sc_eExitPass;
+      _ToNextState(0);
+    }
+    else //超过当前次数转错误状态
+      if(ESP8266Sc.RetryIndex >= ESP8266SC_RETRY_COUNT) _ToNextState(1);
     else ESP8266Sc.Flag |= ESP8266SC_SEND_RDY;//继续当前状态重试
     return;
   }
@@ -196,7 +203,7 @@ void ESP8266Sc_FastTask(void)
   
   //透传模式了，填充用户欢迎信息后直接结束状态
   if(ESP8266Sc.eState == ESP8266Sc_ePassData1st){
-    *pSendBuf = '>';//多加一字符防止发送-1出错
+    *pSendBuf = ':';//多加一字符防止发送-1出错
     *(pSendBuf + 1) = '\0';//用户不填充则无字符不发送
     ESP8266Sc_cbFulPassData1st(pSendBuf);   //由用户填充(可不填充即不发送)
     goto _FullEnd;
@@ -227,12 +234,13 @@ void ESP8266Sc_FastTask(void)
 
 //----------------------------接收相关字符------------------------------
 static const char _OK[] =         {"OK"};          //OK字符
+static const char _Got[] =         {"GOT"};          //WIFI GOT IP字符
 static const char _CONNECT[] =  {"CONNECT"};//服务器连接成功标志
 //本地IP前缀(返回字样：+CIFSR:STAIP,"192.168.88.152"+CIFSRSTAMAC,)
 static const char _DotDp[] =       {",\""}; //用于检查格式
 static const char _NullIp[] =      {"0.0"}; //示例：MISTAIP,"0.0.0.0"表示无IP
 static const char _ctedWifi[] =      {"cted"}; //配网成功后会提示：smartconfig connected wifi
-static const char _PassEnter[] =   {">"};        //开始透传标志\r\n
+//static const char _PassEnter[] =   {">"};        //开始透传标志\r\n
 
 //--------------------------接收数据处理----------------------------------
 //返回0没处理,否则处理完成
@@ -248,7 +256,7 @@ signed char ESP8266Sc_RcvData(const unsigned char *pData,
   //检查接收是否下确(pStr ！= NULL为正确)  
   if(ESP8266Sc.Flag  & ESP8266SC_WAIT_SMART_CONN){//智能配网时检查返回状态
     if(StrFind(pStr, _ctedWifi) == NULL) return 1;
-    ESP8266Sc.Flag  &= ~ESP8266SC_WAIT_SMART_CONN;//配网成功了,继续
+    ESP8266Sc.Flag  &= ~(ESP8266SC_SMART_CONN | ESP8266SC_WAIT_SMART_CONN);//配网成功了,继续
     ESP8266Sc_cbSmartConnFinal();//完成通报
   }
   else if(Info & 0x10){//OK字符检查
@@ -259,8 +267,13 @@ signed char ESP8266Sc_RcvData(const unsigned char *pData,
       return 1;
     }
     if(ESP8266Sc.eState == ESP8266Sc_eStartPass){//开始透传时可能错过OK,检查起始
-      if(pStr == NULL) pStr = StrFind((const char *)pData, _PassEnter);
+      //if(pStr == NULL) pStr = StrFind((const char *)pData, _PassEnter);
+      //if(pStr == NULL) return;//还是没找到，不提前结束，继续等待
+      pStr = pData;//修改为只要收到数即认为结束
     }
+  }
+  else if(ESP8266Sc.eState == ESP8266Sc_eRst){//复位期间获得IP时提前退出
+    if(StrFind(pStr, _Got) == NULL) return 1;  
   }
   else if(ESP8266Sc.eState == ESP8266Sc_eSetServer)//设置服务器时
     pStr = StrFind(pStr, _CONNECT);

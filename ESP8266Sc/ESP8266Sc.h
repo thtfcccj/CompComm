@@ -24,6 +24,11 @@
   #define ESP8266SC_RETRY_COUNT 2
 #endif
 
+//定义总故障计时超时次数，防止没退出透传状态
+#ifndef ESP8266SC_ERR_COUNT
+  #define ESP8266SC_ERR_COUNT 20
+#endif
+
 /****************************************************************************
 		                     流程说明
 ****************************************************************************/
@@ -97,6 +102,7 @@ struct _ESP8266Sc{
   enum _ESP8266Sc_eState eState;
   unsigned char Timer;            //定时器
   unsigned char RetryIndex;       //同一状态查询次数
+  unsigned char ErrIndex;         //总故障计时器
   unsigned char Flag;             //相关标志，见定义
   
   #ifdef SUPPORT_ESP8266SC_LOCAL_IP//保存本地IP时
