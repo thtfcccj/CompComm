@@ -337,7 +337,7 @@ void MqttMng_RcvPro(struct _MqttMng *pMqtt,
   //发布模式收到发布来的消息单独处理
   if(pMqtt->eMsgTypes == PUBLISH){
     if(RcvLen > pMqtt->SerializeLen) RcvLen = pMqtt->SerializeLen;
-    memcpyL(pMqtt->SerializeBuf,pData, RcvLen); //缓冲到预列化中稍后处理
+    memcpyP(pMqtt->SerializeBuf,pData, RcvLen); //缓冲到预列化中稍后处理
     //继续处理                        
     pMqtt->Flag |= MQTT_MNG_TYPE_CONTINUE | MQTT_MNG_TYPE_PUBLISH_RCVED;
     return;
@@ -469,7 +469,7 @@ void MqttMng_Task(struct _MqttMng *pMqtt)
     pMqtt->RetryIndex++;
     if(pMqtt->RetryIndex >= //大于重试次数，网断开了,需重连
        pMqtt->pUser->GetTime(pMqtt->pUserHandle,MQTT_USER_TIME_RETRY_COUNT)) {
-      MqttMng_ErrToServerNotify(pMqtt);
+      MqttMng_cbErrToServerNotify(pMqtt);
       //重新初始化此模块并获得等待时间
       const struct _MqttUser *pUser = pMqtt->pUser;
       MqttMng_Init(pMqtt, pUser, pMqtt->pUserHandle); 

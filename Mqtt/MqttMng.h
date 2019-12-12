@@ -142,8 +142,8 @@ void MqttMng_Task(struct _MqttMng *pMqtt);
 *******************************************************************************/
 
 //----------------------------通讯无法与MQTT服务器通讯--------------------------
-void MqttMng_ErrToServerNotify(const struct _MqttMng *pMqtt);
-//#define MqttMng_ErrToServerNotify(pmqtt) do{}while(0)
+void MqttMng_cbErrToServerNotify(const struct _MqttMng *pMqtt);
+//#define MqttMng_cbErrToServerNotify(pmqtt) do{}while(0)
 
 
 #endif //MQTT_MNG_H
