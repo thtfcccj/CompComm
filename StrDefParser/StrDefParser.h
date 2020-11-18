@@ -8,6 +8,7 @@
 
 extern const char En_get[];// =        "get";
 extern const char En_set[];// =      "set";
+extern const char En_OK[];// =      "OK";
 
 extern const char Ch_ShortContent[];// =   "内容过短!";
 extern const char Ch_OK[];// =             "操作成功!";

@@ -8,6 +8,7 @@
 
 const char En_get[] =        "get";
 const char En_set[] =      "set";
+const char En_OK[] =      "OK";
 
 const char Ch_ShortContent[] =    "内容过短!";
 const char Ch_OK[] =             "操作成功!";
