@@ -19,8 +19,8 @@ static void _GetZero(struct _QMenuPara *pPara, unsigned char Type)
   pPara->Cfg2 = QMENU_CFG2_QUIT_SAVE | QMENU_CFG2_NEGATIVE;
   signed short Offset = (signed short)DA_Adj_GetZero() - DA_ADJ_ZERO_DEFAULT;
   pPara->Adj = Offset >> 4;
-  pPara->Min = -999;
-  pPara->Max = 999;
+  pPara->Min = -9999;
+  pPara->Max = 9999;
   if(Type == QMENU_LAYER_WR)
     DA_Adj_SetZeroMode(); //立即进入模式
 }
@@ -47,8 +47,8 @@ static void _GetFull(struct _QMenuPara *pPara, unsigned char Type)
   pPara->Cfg2 = QMENU_CFG2_QUIT_SAVE | QMENU_CFG2_NEGATIVE;
   signed short Offset = (unsigned short)DA_Adj_GetGain() - DA_ADJ_GAIN_DEFAULT;
   pPara->Adj = Offset >> 1;
-  pPara->Min = -999;
-  pPara->Max = 999;
+  pPara->Min = -9999;
+  pPara->Max = 9999;
   if(Type == QMENU_LAYER_WR)
     DA_Adj_SetGainMode(); //立即进入模式
 }

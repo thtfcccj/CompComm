@@ -42,14 +42,19 @@
   #define DA_ADJ_USER_FULL      DA_FULL //默认DA对应
 #endif
 
-//定义零输出时的DA值
+//定义零输出时的DA值(如4mA对应数值)
 #ifndef DA_ADJ_OUT_ZERO
   #define DA_ADJ_OUT_ZERO      0 //默认最小
 #endif
 
-//定义满输出时的DA值
+//定义满量程输出时的DA值(如20mA对应数值)
 #ifndef DA_ADJ_OUT_FULL
-  #define DA_ADJ_OUT_FULL      DA_FULL //默认最大
+  #define DA_ADJ_OUT_FULL      4000
+#endif
+
+//定义满输出时的DA值
+#ifndef DA_ADJ_OUT_MAX
+  #define DA_ADJ_OUT_MAX      DA_FULL //默认最大
 #endif
 
 /******************************************************************************
@@ -88,8 +93,8 @@ void DA_Adj_UpdateNegaVol(unsigned short Vol);
 //----------------------------更新为零输出函数------------------------------
 void DA_Adj_UpdateZero(void);
 
-//----------------------------更新为满输出函数------------------------------
-void DA_Adj_UpdateFull(void);
+//----------------------------更新为最大值输出函数------------------------------
+void DA_Adj_UpdateMax(void);
 
 //------------------------------清零相关函数--------------------------------
 //进出清零模式

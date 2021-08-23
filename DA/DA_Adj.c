@@ -84,10 +84,10 @@ void DA_Adj_UpdateZero(void)
   DA_SetDA(DA_ADJ_OUT_ZERO);  
 }
 
-//----------------------------更新为满输出函数------------------------------
-void DA_Adj_UpdateFull(void)
+//----------------------------更新为最大值输出函数------------------------------
+void DA_Adj_UpdateMax(void)
 {
-  DA_SetDA(DA_ADJ_OUT_FULL);
+  DA_SetDA(DA_ADJ_OUT_MAX);
 }
 
 //------------------------------清零相关函数--------------------------------
