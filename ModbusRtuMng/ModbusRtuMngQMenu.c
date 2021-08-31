@@ -35,7 +35,7 @@ static void _GetAdr(struct _QMenuPara *pPara, unsigned char Type)
   pPara->Cfg = QMENU_CFG_ADJ_BIT;
   pPara->Adj = ModbusRtuMng_GetAdr();
   pPara->Min = 1;
-  pPara->Max = 2;
+  pPara->Max = 254;
 }
 static void _SetAdr(struct _QMenuPara *pPara, unsigned char Type)
 {

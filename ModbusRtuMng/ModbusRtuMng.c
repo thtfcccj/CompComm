@@ -66,8 +66,8 @@ void ModbusRtuMng_Init(unsigned char Inited)
     #endif
   }
   ModbusRtuMng.Count = _Baud2Ov[_GetBuadCfg()];
-  UsartTiny_CfgHw(ModbusRtuMng.Info.CommCfg);//配置底层硬件
   UsartTiny_Init();//初始化底层通讯
+  UsartTiny_CfgHw(ModbusRtuMng.Info.CommCfg);//配置底层硬件
 }
 
 //--------------------------通讯地址设置函数-----------------------------
@@ -107,8 +107,8 @@ unsigned char ModbusRtuMng_Data(void)
 {
   //先检查地址是否正确
   unsigned char CurAdr = UsartTiny.Data[0];
-  //地址错误,254为默认地址,用于重设通讯址与波特率等
-  if((CurAdr != 0) && (CurAdr != ModbusRtuMng.Info.Adr)&& (CurAdr != 254))
+  //地址错误,255为P2P地址,用于重设通讯址与波特率等
+  if((CurAdr != 0) && (CurAdr != ModbusRtuMng.Info.Adr) && (CurAdr != 255))
     return -1;
     
   //检查长度是否过短,地址1+功能码1+数据[0~n]+校验码2 >=4
