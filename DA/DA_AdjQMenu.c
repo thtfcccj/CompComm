@@ -36,8 +36,7 @@ static void _SetZero(struct _QMenuPara *pPara, unsigned char Type)
 
 //主结结构
 const struct _QMenuFun DA_AdjQMenu_Zero = {
-  {LED_SIGN_Z, LED_SIGN_0 | LED_SIGN_DOT,LED_SIGN_2,LED_SIGN_4 | LED_SIGN_DOT}, //4.20.Z(原兼容)
-  _GetZero, _SetZero,
+  DA_ADJ_QMENU_NOTE_ZERO, _GetZero, _SetZero,
 };
 
 //-----------------------------满量程标定--------------------------------
@@ -64,6 +63,5 @@ static void _SetFull(struct _QMenuPara *pPara, unsigned char Type)
 
 //主结结构
 const struct _QMenuFun DA_AdjQMenu_Full = {
-  {LED_SIGN_F, LED_SIGN_0 | LED_SIGN_DOT,LED_SIGN_2,LED_SIGN_4 | LED_SIGN_DOT}, //4.20.F(原兼容)
-  _GetFull, _SetFull,
+  DA_ADJ_QMENU_NOTE_FULL, _GetFull, _SetFull,
 };

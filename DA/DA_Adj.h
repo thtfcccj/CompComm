@@ -11,6 +11,9 @@
   
 #ifndef __DA_ADJ_H
 #define __DA_ADJ_H
+#ifdef SUPPORT_EX_PREINCLUDE//²»Ö§³ÖPreinlude•r
+  #include "Preinclude.h"
+#endif
 
 #include "DA.h"
 /******************************************************************************
