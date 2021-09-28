@@ -120,7 +120,7 @@ void Spi3mIo_RW(unsigned char Cs,            //操作的设备
       if(SendSize > 1) BitLen = 8;
       else BitLen = pCs->LastBitLen;
        _WrData(pCs, BitLen, *pSend);
-      Spi3mIo_cbDelay(pCs->BitDelay); //字节间延时
+      Spi3mIo_cbDelay(pCs->ByteDelay); //字节间延时
     }
   }
   if(!RcvSize){//仅发送
@@ -135,7 +135,7 @@ void Spi3mIo_RW(unsigned char Cs,            //操作的设备
     if(RcvSize > 1) BitLen = 8;
     else BitLen = pCs->LastBitLen;
      *pRcv = _RdData(pCs, BitLen);
-    Spi3mIo_cbDelay(pCs->BitDelay); //字节间延时
+    Spi3mIo_cbDelay(pCs->ByteDelay); //字节间延时
   }
 
   Spi3mIo_cbInvalidCs(Cs); //结束
