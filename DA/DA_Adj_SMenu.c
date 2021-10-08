@@ -15,7 +15,7 @@
 static void _GetZero(struct _SMenuUser *pUser, unsigned char Type)
 {
   pUser->Cfg = SMENU_USR_WR | SMENU_USR_REAL_WR | SMENU_USR_ADJ_ALL;
-  pUser->Cfg2 = SMENU_USR2_QUIT_SAVE | SMENU_USR2_NEGATIVE;
+  pUser->Cfg2 = SMENU_USR2_QUIT_SAVE | SMENU_USR2_NEGATIVE;//调整后不可恢复，故退出也保存
   signed short Offset = (signed short)DA_Adj_GetZero() - DA_ADJ_ZERO_DEFAULT;
   pUser->Adj = Offset >> 4;
   pUser->Min = -9999;
@@ -42,7 +42,7 @@ const struct _SMenuFun SMenu_DA_Adj_Zero = {
 static void _GetFull(struct _SMenuUser *pUser, unsigned char Type)
 {
   pUser->Cfg = SMENU_USR_WR | SMENU_USR_REAL_WR | SMENU_USR_ADJ_ALL;
-  pUser->Cfg2 = SMENU_USR2_QUIT_SAVE | SMENU_USR2_NEGATIVE;
+  pUser->Cfg2 = SMENU_USR2_QUIT_SAVE | SMENU_USR2_NEGATIVE;//调整后不可恢复，故退出也保存
   signed short Offset = (unsigned short)DA_Adj_GetGain() - DA_ADJ_GAIN_DEFAULT;
   pUser->Adj = Offset >> 1;
   pUser->Min = -9999;
