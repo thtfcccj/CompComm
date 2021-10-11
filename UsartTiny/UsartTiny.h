@@ -11,6 +11,9 @@
 
 #ifndef __USART_TINY_H
 #define __USART_TINY_H
+#ifdef SUPPORT_EX_PREINCLUDE//不支持Preinlude時
+  #include "Preinclude.h"
+#endif
 
 /*********************************************************************
                              相关配置与定义
@@ -78,7 +81,11 @@ void UsartTiny_SendStart(unsigned char SendLen);
 //1.实现485的RT控制 2.指示灯控制(借用FireFreme的通讯指示灯软件接口),
 //3上层接口
 #include "IOCtrl.h"
-#include "ModbusRtuMng.h"
+#ifdef SUPPORT_TI_COMM_MNG
+  #include "TiCommMng.h"
+#else
+  #include "ModbusRtuMng.h"
+#endif
 //-----------------------------初始化附加函数------------------------------
 //void UsartTiny_cbInit(void);
 #define UsartTiny_cbInit() do{CfgUsartIo();}while(0)
@@ -97,7 +104,11 @@ void UsartTiny_SendStart(unsigned char SendLen);
 
 //----------------------------中断内接收到数据通报函数------------------------------
 //void UsartTiny_cbRcvDataNotify(void);
+#ifdef SUPPORT_TI_COMM_MNG
+#define UsartTiny_cbRcvDataNotify() do{TiCommMng_ResetRcvTimer();}while(0)
+#else
 #define UsartTiny_cbRcvDataNotify() do{ModbusRtuMng_ResetRcvTimer();}while(0)
+#endif
 
 //----------------------------中断内接收到数据溢出函数------------------------------
 //void UsartTiny_cbRcvDataOv(void);
@@ -105,8 +116,12 @@ void UsartTiny_SendStart(unsigned char SendLen);
 
 //----------------------------中断内发送出一个数据通报函数------------------------------
 //void UsartTiny_cbSendDataNotify(void);
-#define UsartTiny_cbSendDataNotify() do{ModbusRtuMng_ResetSendTimer();}while(0)
-
+#ifdef SUPPORT_TI_COMM_MNG
+  #define UsartTiny_cbSendDataNotify() do{TiCommMng_ResetSendTimer();}while(0)
+#else
+  #define UsartTiny_cbSendDataNotify() do{ModbusRtuMng_ResetSendTimer();}while(0)
+#endif
+ 
 //------------------------数据发送到最后通报函数------------------------------
 //void UsartTiny_cbSendLastDataNotify(void);
 #define UsartTiny_cbSendLastNotify() do{}while(0)
