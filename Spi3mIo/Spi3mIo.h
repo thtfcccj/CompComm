@@ -68,7 +68,7 @@ void Spi3mIo_RW(unsigned char Cs,            //操作的设备
 ******************************************************************************/
 
 //应用层相关，由用户定义并实现的片选信息。
-extern struct _Spi3mIoCs Spi3mIo_CbCs[SPI3_MIO_CS_COUNT];
+extern const struct _Spi3mIoCs Spi3mIo_CbCs[SPI3_MIO_CS_COUNT];
 
 //---------------------------------选中片选-----------------------------------
 //一搬为低电平选中
