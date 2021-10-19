@@ -106,7 +106,7 @@ void Spi3mIo_RW(unsigned char Cs,            //操作的设备
                  unsigned char RcvSize)     //接收数据大小，0时只发不收
 {
   unsigned char BitLen;//位长
-  struct _Spi3mIoCs *pCs = &Spi3mIo_CbCs[Cs];
+  const struct _Spi3mIoCs *pCs = &Spi3mIo_CbCs[Cs];
 
   //软件SPI直接强制发送
   Spi3mIo_cbEnterCritical();//进入临界区

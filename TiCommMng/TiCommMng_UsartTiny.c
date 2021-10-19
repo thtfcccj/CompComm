@@ -24,6 +24,13 @@ void TiCommMng_Init(void)
   //后应紧跟配置底层硬件
 }
 
+//-------------------------------中断任务----------------------------
+//将此函数放入1ms间隔中断进程中
+void TiCommMng_IntTask(void)
+{
+  if(TiCommMng.Index) TiCommMng.Index--; 
+}
+
 //-------------------------------普通查询任务----------------------------
 //将此函数放入系统1ms进程中
 void TiCommMng_Task(void)
@@ -37,14 +44,18 @@ void TiCommMng_Task(void)
     UsartTiny_RcvStart();
     //停止数据收发数据
     TiCommMng.Flag &= ~(TI_COMM_MNG_RCV_DOING | TI_COMM_MNG_SEND_DOING);
+    
     return;
   }
-  //没在发送与接收过程中,//不执行
+  if(TiCommMng.Index) return;//时间未到或在接收等待中  
+  //没在发送或接收等待过程中
   if(!(TiCommMng.Flag & (TI_COMM_MNG_RCV_DOING | 
-                          TI_COMM_MNG_SEND_DOING))) return;
-  //发送与接收过程计时
-  if(TiCommMng.Index) TiCommMng.Index--;
-  if(TiCommMng.Index) return;//时间未到
+                          TI_COMM_MNG_SEND_DOING))){
+     if(UsartTiny.eState != UsartTiny_eState_Rcv){//异常，重置接收
+       UsartTiny_RcvStart();
+     }       
+     return;
+  }
   
   //数据接收完成
   if(TiCommMng.Flag & TI_COMM_MNG_RCV_DOING){
