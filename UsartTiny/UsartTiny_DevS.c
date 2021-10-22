@@ -30,12 +30,13 @@ void UsartTiny_Init(void)
 {
   memset(&UsartTiny, 0, sizeof(struct _UsartTiny));
   UsartTiny_cbInit(); //相关初始化
+  //准备好串口
+  UsartDev_Init(&UsartDev,
+                UsartTiny_pcbGetHw());  //挂接的硬件  
   UsartTiny_Stop();
   UsartTiny.eState =  UsartTiny_eState_Idie;
 
-  //准备好串口
-  UsartDev_Init(&UsartDev,
-                UsartTiny_pcbGetHw());  //挂接的硬件
+
 }
 
 //-----------------------底层硬件配置函数----------------------
