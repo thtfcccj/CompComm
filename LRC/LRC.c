@@ -17,3 +17,15 @@ unsigned short LRC16_Get(const unsigned char *pData,
   return LRC16;
 }
 
+//----------------------得到8位LRC校验码----------------------------
+//输出没有取反
+unsigned char LRC8_Get(const unsigned char *pData, 
+                       unsigned short Len)
+{
+  unsigned char LRC = 0;
+  for(; Len > 0; Len--, pData++){  
+    LRC += *pData;
+  }  
+  return LRC;                    
+}
+
