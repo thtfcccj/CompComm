@@ -44,7 +44,7 @@ void TiCommMng_Task(struct _TiCommMng *pMng)
     UsartTiny_RcvStart(&pMng->UsartTiny);
     //停止数据收发数据
     pMng->Flag &= ~(TI_COMM_MNG_RCV_DOING | TI_COMM_MNG_SEND_DOING);
-    
+    pMng->Index = 0;//等待中
     return;
   }
   if(pMng->Index) return;//时间未到或在接收等待中  
