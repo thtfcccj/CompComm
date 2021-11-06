@@ -15,11 +15,12 @@
 //-----------------------------初始化函数-------------------------------
 //调用此函数前,需初始化UsartDev(含UsartId)及其IO，及对Usart参数进行配置
 void TiCommMng_Init(struct _TiCommMng *pMng,
+                    const struct _UsartDevPt *pFun, //多态操作函数
                     struct _UsartDev *pDev)
 {
   memset(pMng, 0, sizeof(struct _TiCommMng));
   pMng->Count = TiCommMng_cbBuadId2FremeOv(pMng);
-  UsartTiny_Init(&pMng->UsartTiny, pDev);//初始化底层通讯
+  UsartTiny_Init(&pMng->UsartTiny, pFun, pDev);//初始化底层通讯
   //后应紧跟配置底层硬件
 }
 

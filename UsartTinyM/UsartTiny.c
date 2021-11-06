@@ -17,9 +17,11 @@
 //-----------------------------初始化函数------------------------------
 //调用此函数前,需初始化UsartDev(含UsartId)及其IO，及对Usart参数进行配置
 void UsartTiny_Init(struct _UsartTiny *pTiny,
-                    struct _UsartDev *pDev)
+                    const struct _UsartDevPt *pFun, //多态操作函数
+                    struct _UsartDev *pDev)  ///持有的对像
 {
   memset(pTiny, 0, sizeof(struct _UsartTiny));
+  pTiny->pFun = pFun;  
   pTiny->pDev = pDev;
   UsartTiny_Stop(pTiny);
   pTiny->eState =  UsartTiny_eState_Idie;
@@ -29,8 +31,8 @@ void UsartTiny_Init(struct _UsartTiny *pTiny,
 //收发数据过程中中止数据收发
 void UsartTiny_Stop(struct _UsartTiny *pTiny)
 {
-  UsartDev_RcvStop(pTiny->pDev);
-  UsartDev_SendStop(pTiny->pDev);  
+  pTiny->pFun->RcvStop(pTiny->pDev);
+  pTiny->pFun->SendStop(pTiny->pDev);  
   //复位状态机与内部变量
   //这里不清pTiny->Index以便在停止后仍可获知当前收发数据个数情况
   pTiny->eState = UsartTiny_eState_Idie;
@@ -67,7 +69,7 @@ void UsartTiny_RcvStart(struct _UsartTiny *pTiny)
   
   UsartTiny_cbRcvStartNotify(pTiny);//启动接收通报
   pTiny->pDev->pVoid = pTiny;//回调使用
-  UsartDev_RcvStart(pTiny->pDev, 
+  pTiny->pFun->RcvStart(pTiny->pDev, 
                     pTiny->Data, 
                     USART_TINY_DATA_MAX, //手动接收
                     _RcvEndInt);
@@ -108,9 +110,9 @@ void UsartTiny_SendStart(struct _UsartTiny *pTiny,
 
   UsartTiny_cbSendStartNotify(pTiny);   //启动发送通报
   pTiny->pDev->pVoid = pTiny;//回调使用  
-  UsartDev_SendStart(pTiny->pDev, 
-                     pTiny->Data, 
-                     SendLen, //手动模式
-                     _SendEndInt);
+  pTiny->pFun->SendStart(pTiny->pDev, 
+                         pTiny->Data, 
+                         SendLen, //手动模式
+                          _SendEndInt);
 }
 

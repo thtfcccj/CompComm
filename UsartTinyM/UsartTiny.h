@@ -1,8 +1,8 @@
 /******************************************************************
 
 //               多例化USART精简模块对外接口
-//此模块为UsartTiny的多例化，用于驱动多个UsartDev硬件
-//2.仅不支持自动发送模式(发送过程中需上层干预)。
+//此模块为UsartTiny的多例化，底层支持多态(如硬件UART与IO模拟UART)
+//2.不支持自动发送模式(发送过程中需上层干预)。
 //3.仅支持半双工模式
 //注:此模块仅负责数据收发,不负责底层通讯参数的配置
 *******************************************************************/
@@ -25,6 +25,8 @@
 /*********************************************************************
                              相关结构
 ***********************************************************************/
+#include "UsartDevPt.h" //多态支持
+#include "UsartDev.h"   //结构支持
 
 //工作状态机
 enum _UsartTiny_eState{
@@ -36,7 +38,8 @@ enum _UsartTiny_eState{
 };
 
 struct _UsartTiny{
-  struct _UsartDev *pDev;  //持用不拥有允许外部使用()
+  const struct _UsartDevPt *pFun; //多态操作函数
+  struct _UsartDev *pDev;  //持用不拥有允许外部使用
   enum _UsartTiny_eState  eState; //工作状态机
   unsigned char Index;   //收发数据位置
   unsigned char SendLen; //发送数据个数  
@@ -50,7 +53,8 @@ struct _UsartTiny{
 //-----------------------------初始化函数------------------------------
 //调用此函数前,需初始化UsartDev(含UsartId)及其IO，及对Usart参数进行配置
 void UsartTiny_Init(struct _UsartTiny *pTiny,
-                    struct _UsartDev *pDev);
+                    const struct _UsartDevPt *pFun, //多态操作函数
+                    struct _UsartDev *pDev);  ///持有的对像
 
 //---------------------------停止数据收发函数-------------------------
 //收发数据过程中中止数据收发

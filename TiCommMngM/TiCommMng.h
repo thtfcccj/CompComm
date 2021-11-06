@@ -45,6 +45,7 @@ struct _TiCommMng{
 //-----------------------------初始化函数-------------------------------
 //调用此函数前,需初始化UsartDev(含UsartId)及其IO，及对Usart参数进行配置
 void TiCommMng_Init(struct _TiCommMng *pMng,
+                    const struct _UsartDevPt *pFun, //多态操作函数
                     struct _UsartDev *pDev);
 
 //-------------------------------中断任务----------------------------
