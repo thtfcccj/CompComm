@@ -8,6 +8,13 @@
 #include "TiCommMng.h"
 #include <string.h>
 
+//支持通讯计数时
+#ifdef SUPPORT_COMM_COUNT 
+  unsigned long _CommCount = 0;//接收总数 
+  unsigned long _ValidCount = 0;//有效计数
+  unsigned long _InValidCount = 0;//无效计数  
+#endif
+
 /***********************************************************************
                             相关函数实现
 ***********************************************************************/
@@ -72,11 +79,25 @@ void TiCommMng_Task(struct _TiCommMng *pMng)
     #else
       Resume = TiCommMng_cbDataPro(pMng);//数据处理
     #endif
+
+    #ifdef SUPPORT_COMM_COUNT //支持通讯计数时
+      _CommCount++;//接收总数 
+    #endif
+      
      if((Resume != 0) && (Resume != 255)){ //数据正确,发送数据
        UsartTiny_SendStart(&pMng->UsartTiny, Resume);
        pMng->Flag |= TI_COMM_MNG_SEND_DOING;//启动发送
        pMng->Index = pMng->Count;//计算发送超时
+       #ifdef SUPPORT_COMM_COUNT //支持通讯计数时
+        _ValidCount++;//有效计数
+       #endif
      }
+     else{
+      #ifdef SUPPORT_COMM_COUNT //支持通讯计数时
+        if(Resume == 255) _InValidCount++;//无效计数
+      #endif
+     }
+     
   }
   else{//发送超时完成了
     UsartTiny_Stop(&pMng->UsartTiny);
