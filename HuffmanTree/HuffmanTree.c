@@ -10,60 +10,39 @@
 #include "HuffmanTree.h"
 #include <string.h>
 
-extern struct _HuffmanTree HuffmanTree[2]; //动态哈夫曼结构
-//---------------------------------内部宏定义-----------------------------------
-/* amount of bits for first huffman table lookup (aka root bits), see HuffmanTree_makeTable and HuffmanTree_DecodeSymbol.*/
-/* values 8u and 9u work the fastest */
-#define FIRSTBITS     9u
 
-#define INVALIDSYMBOL 65535u
+//struct _HuffmanTreeMng _HuffmanTreeMng;//容量测试
+//struct _HuffmanTreeBuf _HuffmanTreeBuf;//容量测试
 
-#define FIRST_LENGTH_CODE_INDEX   257
-#define LAST_LENGTH_CODE_INDEX    285
-/*256 literals, the end code, some length codes, and 2 unused codes*/
-#define NUM_DEFLATE_CODE_SYMBOLS   288
-/*the distance codes have their own symbols, 30 used, 2 unused*/
-#define NUM_DISTANCE_SYMBOLS       32
-/*the code length codes. 0-15: code lengths, 16: copy previous 3-6 times, 17: 3-10 zeros, 18: 11-138 zeros*/
-#define NUM_CODE_LENGTH_CODES      19
+/*******************************************************************************
+                             相关变量
+*******************************************************************************/
 
-//-----------------------------HuffmanTree--------------------------------
-//HuffmanTree_UpdateDync中产生,makeTable()需要
-static unsigned long bitlen_ll[NUM_DEFLATE_CODE_SYMBOLS];//tree_ll用
-static unsigned long bitlen_d[NUM_DISTANCE_SYMBOLS]; //tree_d用
-//_makeFromLengths2()或makeTable()中传递
-static unsigned long _codes[NUM_DEFLATE_CODE_SYMBOLS];//tree_ll,tree_d共用
+//------------------------pHuffmanTreeMng内相关操作宏---------------------------
+struct _HuffmanTreeMng *pHuffmanTreeMng;
+#define _HuffmanTree(id)  pHuffmanTreeMng->HuffmanTree[id]
+#define _table_len(id)    pHuffmanTreeMng->table_len[id]
+#define _table_value(id)  pHuffmanTreeMng->table_value[id]
 
-//-----------------------------内部临时变量定义--------------------------------
-union {
-  struct{//_makeFromLengths2()中使用, 用于生成_codes
-    unsigned long blcount[16];
-    unsigned long nextcode[16];
-  }makecodes;
-  struct{//makeTable()中使用：
-    unsigned long maxlens[1u << FIRSTBITS];
-  }makeTables;
-}u;
+//------------------------HuffmanTreeBuf内相关操作宏-----------------------------
+static struct _HuffmanTreeBuf  *_buf; //内部缓冲
+#define _codes      _buf->m.codes
+#define _bitlen_ll  _buf->m.bitlen_ll
+#define _bitlen_d   _buf->m.bitlen_d
 
-//最后需要的：动态哈夫曼结构长度查找表, _makeTable()中产生
-static unsigned char table_len[2][1u << FIRSTBITS]; 
-//最后需要的：动态哈夫曼结构值查找表, _makeTable()中产生
-static unsigned short table_value[2][1u << FIRSTBITS]; 
-
-#define maxlens  u.makeTables.maxlens
-#define _table_len(id)  table_len[id]
-#define _table_value(id)  table_value[id]
-#define _blcount  u.makecodes.blcount
-#define _nextcode  u.makecodes.nextcode
+#define _blcount   _buf->u.makecodes.blcount
+#define _nextcode  _buf->u.makecodes.nextcode
+#define _maxlens   _buf->u.makeTables.maxlens
 
 //内部复用：
-#define HAFFMAN_TREE_CL      0  //0
-#define tree_cl  HuffmanTree[0] //先用，后面不用了
-#define bitlen_cl  bitlen_ll    //先用，后面不用了
+#define _HAFFMAN_TREE_CL  0  //0
+#define _tree_cl          _HuffmanTree(0) //先用，后面不用了
+#define _bitlen_cl        _bitlen_ll      //先用，后面不用了
+
 //---------------------------------常量表定义-----------------------------
 /*the order in which "code length alphabet code lengths" are stored as specified by deflate, out of this the huffman
 tree of the dynamic huffman tree lengths is generated*/
-static const unsigned char CLCL_ORDER[NUM_CODE_LENGTH_CODES]= {
+static const unsigned char CLCL_ORDER[HAFFMAN_TREE_NUM_CODE_LENGTH_CODES]= {
   16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
 };
 
@@ -87,6 +66,14 @@ static const unsigned char CLCL_ORDER[NUM_CODE_LENGTH_CODES]= {
   #define _ABS(x) ((x) < 0 ? -(x) : (x))
 #endif
 
+
+static unsigned reverseBits(unsigned bits, unsigned num) {
+  /*TODO: implement faster lookup table based version when needed*/
+  unsigned i, result = 0;
+  for(i = 0; i < num; i++) result |= ((bits >> (num - i - 1u)) & 1u) << i;
+  return result;
+}
+
 //---------------------------------结构初始化-----------------------------
 static void _init(HuffmanTree_t *tree)
 {
@@ -96,40 +83,34 @@ static void _init(HuffmanTree_t *tree)
   tree->table_value = 0;
 }
 
-static unsigned reverseBits(unsigned bits, unsigned num) {
-  /*TODO: implement faster lookup table based version when needed*/
-  unsigned i, result = 0;
-  for(i = 0; i < num; i++) result |= ((bits >> (num - i - 1u)) & 1u) << i;
-  return result;
-}
-
 //----------------------------生成查找表-----------------------------
 //生成table_len，table_value以在解码时调用HuffmanTree_makeTable
 //得到解码需要的查找表
 static signed char _makeTable(unsigned char id)
 {
-  HuffmanTree_t* tree = &HuffmanTree[id];
+  HuffmanTree_t* tree = &_HuffmanTree(id);
   
-  static const unsigned headsize = 1u << FIRSTBITS; /*size of the first table*/
-  static const unsigned mask = (1u << FIRSTBITS) /*headsize*/ - 1u;
+  static const unsigned headsize = 1u << HAFFMAN_TREE_FIRSTBITS; /*size of the first table*/
+  static const unsigned mask = (1u << HAFFMAN_TREE_FIRSTBITS) /*headsize*/ - 1u;
   size_t i, numpresent, pointer, size; /*total table size*/
   
+  unsigned long *maxlens = _maxlens;
   /* compute maxlens: max total bit length of symbols sharing prefix in the first table*/
   memset(maxlens, 0, headsize * sizeof(*maxlens));
   for(i = 0; i < tree->numcodes; i++) {
     unsigned symbol = tree->codes[i];
     unsigned l = tree->lengths[i];
     unsigned index;
-    if(l <= FIRSTBITS) continue; /*symbols that fit in first table don't increase secondary table size*/
-    /*get the FIRSTBITS MSBs, the MSBs of the symbol are encoded first. See later comment about the reversing*/
-    index = reverseBits(symbol >> (l - FIRSTBITS), FIRSTBITS);
+    if(l <= HAFFMAN_TREE_FIRSTBITS) continue; /*symbols that fit in first table don't increase secondary table size*/
+    /*get the HAFFMAN_TREE_FIRSTBITS MSBs, the MSBs of the symbol are encoded first. See later comment about the reversing*/
+    index = reverseBits(symbol >> (l - HAFFMAN_TREE_FIRSTBITS), HAFFMAN_TREE_FIRSTBITS);
     maxlens[index] = _MAX(maxlens[index], l);
   }
-  /* compute total table size: size of first table plus all secondary tables for symbols longer than FIRSTBITS */
+  /* compute total table size: size of first table plus all secondary tables for symbols longer than HAFFMAN_TREE_FIRSTBITS */
   size = headsize;
   for(i = 0; i < headsize; ++i) {
     unsigned l = maxlens[i];
-    if(l > FIRSTBITS) size += (1u << (l - FIRSTBITS));
+    if(l > HAFFMAN_TREE_FIRSTBITS) size += (1u << (l - HAFFMAN_TREE_FIRSTBITS));
   }
   tree->table_len = _table_len(id);
   tree->table_value = _table_value(id);   
@@ -141,10 +122,10 @@ static signed char _makeTable(unsigned char id)
   pointer = headsize;
   for(i = 0; i < headsize; ++i) {
     unsigned l = maxlens[i];
-    if(l <= FIRSTBITS) continue;
+    if(l <= HAFFMAN_TREE_FIRSTBITS) continue;
     tree->table_len[i] = l;
     tree->table_value[i] = pointer;
-    pointer += (1u << (l - FIRSTBITS));
+    pointer += (1u << (l - HAFFMAN_TREE_FIRSTBITS));
   }
 
   /*fill in the first table for short symbols, or secondary table for long symbols*/
@@ -157,12 +138,12 @@ static signed char _makeTable(unsigned char id)
     if(l == 0) continue;
     numpresent++;
 
-    if(l <= FIRSTBITS){
-      /*short symbol, fully in first table, replicated num times if l < FIRSTBITS*/
-      unsigned num = 1u << (FIRSTBITS - l);
+    if(l <= HAFFMAN_TREE_FIRSTBITS){
+      /*short symbol, fully in first table, replicated num times if l < HAFFMAN_TREE_FIRSTBITS*/
+      unsigned num = 1u << (HAFFMAN_TREE_FIRSTBITS - l);
       unsigned j;
       for(j = 0; j < num; ++j) {
-        /*bit reader will read the l bits of symbol first, the remaining FIRSTBITS - l bits go to the MSB's*/
+        /*bit reader will read the l bits of symbol first, the remaining HAFFMAN_TREE_FIRSTBITS - l bits go to the MSB's*/
         unsigned index = reverse | (j << l);
         if(tree->table_len[index] != 16) return 55; /*invalid tree: long symbol shares prefix with short symbol*/
         tree->table_len[index] = l;
@@ -171,18 +152,18 @@ static signed char _makeTable(unsigned char id)
     } 
     else {
       /*long symbol, shares prefix with other long symbols in first lookup table, needs second lookup*/
-      /*the FIRSTBITS MSBs of the symbol are the first table index*/
+      /*the HAFFMAN_TREE_FIRSTBITS MSBs of the symbol are the first table index*/
       unsigned index = reverse & mask;
       unsigned maxlen = tree->table_len[index];
-      /*log2 of secondary table length, should be >= l - FIRSTBITS*/
-      unsigned tablelen = maxlen - FIRSTBITS;
+      /*log2 of secondary table length, should be >= l - HAFFMAN_TREE_FIRSTBITS*/
+      unsigned tablelen = maxlen - HAFFMAN_TREE_FIRSTBITS;
       unsigned start = tree->table_value[index]; /*starting index in secondary table*/
-      unsigned num = 1u << (tablelen - (l - FIRSTBITS)); /*amount of entries of this symbol in secondary table*/
+      unsigned num = 1u << (tablelen - (l - HAFFMAN_TREE_FIRSTBITS)); /*amount of entries of this symbol in secondary table*/
       unsigned j;
       if(maxlen < l) return 55; /*invalid tree: long symbol shares prefix with short symbol*/
       for(j = 0; j < num; ++j) {
-        unsigned reverse2 = reverse >> FIRSTBITS; /* l - FIRSTBITS bits */
-        unsigned index2 = start + (reverse2 | (j << (l - FIRSTBITS)));
+        unsigned reverse2 = reverse >> HAFFMAN_TREE_FIRSTBITS; /* l - HAFFMAN_TREE_FIRSTBITS bits */
+        unsigned index2 = start + (reverse2 | (j << (l - HAFFMAN_TREE_FIRSTBITS)));
         tree->table_len[index2] = l;
         tree->table_value[index2] = i;
       }
@@ -198,11 +179,11 @@ static signed char _makeTable(unsigned char id)
     HuffmanTree_DecodeSymbol will cause error. */
     for(i = 0; i < size; ++i) {
       if(tree->table_len[i] == 16) {
-        /* As length, use a value smaller than FIRSTBITS for the head table,
-        and a value larger than FIRSTBITS for the secondary table, to ensure
+        /* As length, use a value smaller than HAFFMAN_TREE_FIRSTBITS for the head table,
+        and a value larger than HAFFMAN_TREE_FIRSTBITS for the secondary table, to ensure
         valid behavior for advanceBits when reading this symbol. */
-        tree->table_len[i] = (i < headsize) ? 1 : (FIRSTBITS + 1);
-        tree->table_value[i] = INVALIDSYMBOL;
+        tree->table_len[i] = (i < headsize) ? 1 : (HAFFMAN_TREE_FIRSTBITS + 1);
+        tree->table_value[i] = HAFFMAN_TREE_INVALIDSYMBOL;
       }
     }
   } else {
@@ -224,22 +205,24 @@ static signed char _makeTable(unsigned char id)
 static void _makeFromLengths2(HuffmanTree_t* tree)
 {
   unsigned bits, n;
+  unsigned long *codes = _codes;
+  tree->codes = codes;
 
-  tree->codes = _codes;
-
-  for(n = 0; n != tree->maxbitlen + 1; n++) _blcount[n] = _nextcode[n] = 0;//初始化为0
+  unsigned long *nextcode = _nextcode;  
+  unsigned long *blcount = _blcount;
+  for(n = 0; n != tree->maxbitlen + 1; n++) blcount[n] = nextcode[n] = 0;//初始化为0
   /*step 1: count number of instances of each code length*/
-  for(bits = 0; bits != tree->numcodes; ++bits) ++_blcount[tree->lengths[bits]];//blcount累加上当前出现的长度
+  for(bits = 0; bits != tree->numcodes; ++bits) ++blcount[tree->lengths[bits]];//blcount累加上当前出现的长度
   /*step 2: generate the nextcode values*/
   for(bits = 1; bits <= tree->maxbitlen; ++bits) {
-    _nextcode[bits] = (_nextcode[bits - 1] + _blcount[bits - 1]) << 1u;
+    nextcode[bits] = (nextcode[bits - 1] + blcount[bits - 1]) << 1u;
   }
   /*step 3: generate all the codes*/
   for(n = 0; n != tree->numcodes; ++n) {
     if(tree->lengths[n] != 0) {
-      tree->codes[n] = _nextcode[tree->lengths[n]]++;
+      codes[n] = nextcode[tree->lengths[n]]++;
       /*remove superfluous bits from the code*/
-      tree->codes[n] &= ((1u << tree->lengths[n]) - 1u);
+      codes[n] &= ((1u << tree->lengths[n]) - 1u);
     }
   }
 }
@@ -250,7 +233,7 @@ static signed char _makeFromLengths(unsigned char id,
                                   brsize_t numcodes, 
                                   unsigned long maxbitlen)
 {
-  HuffmanTree_t* tree = &HuffmanTree[id];
+  HuffmanTree_t* tree = &_HuffmanTree(id);
   tree->lengths = bitlen;
   tree->numcodes = (unsigned)numcodes; /*number of symbols*/
   tree->maxbitlen = maxbitlen;
@@ -261,11 +244,18 @@ static signed char _makeFromLengths(unsigned char id,
 }
 //原函数
 #define HuffmanTree_makeFromLengths(t,b,n,m) _makeFromLengths(t,b,n,m)
+
 //----------------------------更新动态哈夫曼结构-------------------------------
 //原getTreeInflateDynamic, 更新前调用,返回非0有误
 //此函数根据位流更新动态结构
-signed short HuffmanTree_UpdateDync(bReader_t *reader)
+signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传入
+                                     struct _HuffmanTreeBuf *buf,//分配好内存再传入
+                                     bReader_t *reader)
+
 {
+  pHuffmanTreeMng = mng;
+  _buf = buf;  
+  
  /*make sure that length values that aren't filled in will be 0, or a wrong tree will be generated*/
   unsigned error = 0;
   unsigned n, HLIT, HDIST, HCLEN, i;
@@ -280,33 +270,36 @@ signed short HuffmanTree_UpdateDync(bReader_t *reader)
   /*number of code length codes. Unlike the spec, the value 4 is added to it here already*/
   HCLEN = readBits(reader, 4) + 4;//HCLEN最大=2^4+4=20;
 
-  _init(&tree_cl);
+  _init(&_tree_cl);
 
   while(!error) {//建表
     /*read the code length codes out of 3 * (amount of code length codes) bits*/
     if(_gtofl(reader->bp, HCLEN * 3, reader->bitsize)) {
       _ERROR_BREAK(50); /*error: the bit pointer is or will go past the memory*/
     }
+    unsigned long  *bitlen_cl = _bitlen_cl;
     for(i = 0; i != HCLEN; ++i) {//每次取3b缓冲至bitlen_cl，直到给定码长
       ensureBits9(reader, 3); /*out of bounds already checked above */
       bitlen_cl[CLCL_ORDER[i]] = readBits(reader, 3);
     }
-    for(i = HCLEN; i != NUM_CODE_LENGTH_CODES; ++i) {//未使用部分清为0
+    for(i = HCLEN; i != HAFFMAN_TREE_NUM_CODE_LENGTH_CODES; ++i) {//未使用部分清为0
       bitlen_cl[CLCL_ORDER[i]] = 0;
     }
 
-    error = _makeFromLengths(HAFFMAN_TREE_CL, bitlen_cl, NUM_CODE_LENGTH_CODES, 7); //得到查表值
+    error = _makeFromLengths(_HAFFMAN_TREE_CL, bitlen_cl, HAFFMAN_TREE_NUM_CODE_LENGTH_CODES, 7); //得到查表值
     if(error) break;
 
-    memset(bitlen_ll, 0, NUM_DEFLATE_CODE_SYMBOLS * sizeof(*bitlen_ll));
-    memset(bitlen_d, 0, NUM_DISTANCE_SYMBOLS * sizeof(*bitlen_d));
+    unsigned long *bitlen_ll = _bitlen_ll;
+    unsigned long *bitlen_d = _bitlen_d;    
+    memset(bitlen_ll, 0, HAFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS * sizeof(*bitlen_ll));
+    memset(bitlen_d, 0, HAFFMAN_TREE_NUM_DISTANCE_SYMBOLS * sizeof(*bitlen_d));
 
     /*i is the current symbol we're reading in the part that contains the code lengths of lit/len and dist codes*/
     i = 0;
     while(i < HLIT + HDIST) {
       unsigned code;
       ensureBits25(reader, 22); /* up to 15 bits for huffman code, up to 7 extra bits below*/
-      code = HuffmanTree_DecodeSymbol(reader, &tree_cl);
+      code = HuffmanTree_DecodeSymbol(reader, &_tree_cl);
       if(code <= 15) /*a length code*/ {
         if(i < HLIT) bitlen_ll[i] = code;
         else bitlen_d[i - HLIT] = code;
@@ -356,7 +349,7 @@ signed short HuffmanTree_UpdateDync(bReader_t *reader)
           ++i;
         }
       }
-      else{ /*if(code == INVALIDSYMBOL)*/
+      else{ /*if(code == HAFFMAN_TREE_INVALIDSYMBOL)*/
         _ERROR_BREAK(16); /*error: tried to read disallowed huffman symbol*/
       }
       /*check if any of the ensureBits above went out of bounds*/
@@ -372,9 +365,9 @@ signed short HuffmanTree_UpdateDync(bReader_t *reader)
     if(bitlen_ll[256] == 0) _ERROR_BREAK(64); /*the length of the end code 256 must be larger than 0*/
 
     /*now we've finally got HLIT and HDIST, so generate the code trees, and the function is done*/
-    error = HuffmanTree_makeFromLengths(HAFFMAN_TREE_LL, bitlen_ll, NUM_DEFLATE_CODE_SYMBOLS, 15);
+    error = HuffmanTree_makeFromLengths(HAFFMAN_TREE_LL, bitlen_ll, HAFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS, 15);
     if(error) break;
-    error = HuffmanTree_makeFromLengths(HAFFMAN_TREE_D, bitlen_d, NUM_DISTANCE_SYMBOLS, 15);
+    error = HuffmanTree_makeFromLengths(HAFFMAN_TREE_D, bitlen_d, HAFFMAN_TREE_NUM_DISTANCE_SYMBOLS, 15);
 
     break; /*end of error-while*/
   }
@@ -387,17 +380,17 @@ signed short HuffmanTree_UpdateDync(bReader_t *reader)
 unsigned short HuffmanTree_DecodeSymbol(bReader_t *reader, 
                                          const HuffmanTree_t* codetree)
 {
-  unsigned short code = peekBits(reader, FIRSTBITS);//从缓冲区读取对应掩码数据
+  unsigned short code = peekBits(reader, HAFFMAN_TREE_FIRSTBITS);//从缓冲区读取对应掩码数据
   unsigned short l = codetree->table_len[code];//查到的，被压缩数据的长度
   unsigned short value = codetree->table_value[code];//查询到的值
-  if(l <= FIRSTBITS) {
+  if(l <= HAFFMAN_TREE_FIRSTBITS) {
     advanceBits(reader, l); //位读取了，往前推进,即buffer右移l位
     return value;
   }
   else{
-    advanceBits(reader, FIRSTBITS);
-    value += peekBits(reader, l - FIRSTBITS);
-    advanceBits(reader, codetree->table_len[value] - FIRSTBITS);
+    advanceBits(reader, HAFFMAN_TREE_FIRSTBITS);
+    value += peekBits(reader, l - HAFFMAN_TREE_FIRSTBITS);
+    advanceBits(reader, codetree->table_len[value] - HAFFMAN_TREE_FIRSTBITS);
     return codetree->table_value[value];
   }
 }
