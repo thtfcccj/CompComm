@@ -8,8 +8,8 @@
 
 此模块不支持多线程调用！
 *******************************************************************************/
-#ifndef _HAFFMAN_TREE_H
-#define _HAFFMAN_TREE_H
+#ifndef _HUFFMAN_TREE_H
+#define _HUFFMAN_TREE_H
 
 
 /*******************************************************************************
@@ -18,19 +18,24 @@
 /* amount of bits for first huffman table lookup (aka root bits), 
    see HuffmanTree_makeTable and HuffmanTree_DecodeSymbol.*/
 /* values 8u and 9u work the fastest */
-#define HAFFMAN_TREE_FIRSTBITS     9u
+#define HUFFMAN_TREE_FIRSTBITS     9u
 
-#define HAFFMAN_TREE_INVALIDSYMBOL 65535u
+#define HUFFMAN_TREE_INVALIDSYMBOL 65535u
 
-#define HAFFMAN_TREE_FIRST_LENGTH_CODE_INDEX   257
-#define HAFFMAN_TREE_LAST_LENGTH_CODE_INDEX    285
+#define HUFFMAN_TREE_FIRST_LENGTH_CODE_INDEX   257
+#define HUFFMAN_TREE_LAST_LENGTH_CODE_INDEX    285
 /*256 literals, the end code, some length codes, and 2 unused codes*/
-#define HAFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS   288
+#define HUFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS   288
 /*the distance codes have their own symbols, 30 used, 2 unused*/
-#define HAFFMAN_TREE_NUM_DISTANCE_SYMBOLS       32
+#define HUFFMAN_TREE_NUM_DISTANCE_SYMBOLS       32
 /*the code length codes. 0-15: code lengths, 16: copy previous 3-6 times, 17: 3-10 zeros, 18: 11-138 zeros*/
-#define HAFFMAN_TREE_NUM_CODE_LENGTH_CODES      19
+#define HUFFMAN_TREE_NUM_CODE_LENGTH_CODES      19
 
+
+//动态距离哈夫曼结构
+#define HUFFMAN_TREE_LL  0  
+//动态值与长度哈夫曼结构
+#define HUFFMAN_TREE_D   1  
 
 /*******************************************************************************
                              相关结构
@@ -53,32 +58,29 @@ typedef struct _HuffmanTree{
 extern const struct _HuffmanTree HuffmanTree_FixD;//计算好的固定距离哈夫曼结构
 extern const struct _HuffmanTree HuffmanTree_FixLL;//计算好的固定值与长度哈夫曼结构
 
-#define HAFFMAN_TREE_LL  0  //动态距离哈夫曼结构
-#define HAFFMAN_TREE_D   1  //动态值与长度哈夫曼结构
-
 //--------------------------动态哈夫曼管理器-----------------------------------
 struct _HuffmanTreeMng{
   //缓冲的动态哈夫曼结构
   struct _HuffmanTree HuffmanTree[2]; 
   //最后需要的：动态哈夫曼结构长度查找表, _makeTable()中产生
-  unsigned char table_len[2][1u << HAFFMAN_TREE_FIRSTBITS]; 
+  unsigned char table_len[2][1u << HUFFMAN_TREE_FIRSTBITS]; 
   //最后需要的：动态哈夫曼结构值查找表, _makeTable()中产生
-  unsigned short table_value[2][1u << HAFFMAN_TREE_FIRSTBITS]; 
+  unsigned short table_value[2][1u << HUFFMAN_TREE_FIRSTBITS]; 
 };
-
 
 //此管理器在使用动态哈夫曼树时，需一直保持数据的完整性
 extern struct _HuffmanTreeMng *pHuffmanTreeMng;
+
 
 //---------------------------动态哈夫曼内部内存缓冲器---------------------------
 //在HuffmanTree_UpdateDync()中使用，退出即可释放
 struct _HuffmanTreeBuf{
   struct{//HuffmanTree_UpdateDync()中使用的缓冲，需保持至退出
     //HuffmanTree_UpdateDync中产生,makeTable()需要
-    unsigned long bitlen_ll[HAFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS];
-    unsigned long bitlen_d[HAFFMAN_TREE_NUM_DISTANCE_SYMBOLS];
+    unsigned long bitlen_ll[HUFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS];
+    unsigned long bitlen_d[HUFFMAN_TREE_NUM_DISTANCE_SYMBOLS];
     //_makeFromLengths2()或makeTable()中传递
-    unsigned long codes[HAFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS];
+    unsigned long codes[HUFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS];
   }m; 
   
   union {//二级函数使用的缓冲
@@ -87,7 +89,7 @@ struct _HuffmanTreeBuf{
       unsigned long nextcode[16];
     }makecodes;
     struct{//makeTable()中使用：
-      unsigned long maxlens[1u << HAFFMAN_TREE_FIRSTBITS];
+      unsigned long maxlens[1u << HUFFMAN_TREE_FIRSTBITS];
     }makeTables;
   }u;
 };
@@ -98,6 +100,17 @@ struct _HuffmanTreeBuf{
 
 #include "bReader.h"
 
+//----------------------------得到哈夫曼结构-------------------------------
+//仅供解码使用
+//得到刚由HuffmanTree_UpdateDync()创建的动态距离哈夫曼结构
+#define HuffmanTree_pGetDyncD()  &(pHuffmanTreeMng->HuffmanTree[HUFFMAN_TREE_LL])
+//得到刚由HuffmanTree_UpdateDync()创建的动态值与长度哈夫曼结构
+#define HuffmanTree_pGetDyncLL()  (&pHuffmanTreeMng->HuffmanTree[HUFFMAN_TREE_D])
+//得到固定距离哈夫曼结构
+#define HuffmanTree_pGetFixD()  &HuffmanTree_FixD;
+//得到固定值与长度哈夫曼结构
+#define HuffmanTree_pGetFixLL()  &HuffmanTree_FixLL;
+
 //----------------------------更新动态哈夫曼结构-------------------------------
 //原getTreeInflateDynamic, 更新前调用,返回非0有误
 //此函数根据位流更新动态结构
@@ -105,11 +118,11 @@ signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传
                                      struct _HuffmanTreeBuf *buf,//分配好内存再传入
                                      bReader_t *reader);
 
-//---------------------------------哈夫曼译码-----------------------------
+//------------------------------------哈夫曼译码------------------------------
 //原huffmanDecodeSymbol
 unsigned short HuffmanTree_DecodeSymbol(bReader_t *reader, 
                                          const HuffmanTree_t* codetree);
 
-#endif //_HAFFMAN_TREE_H
+#endif //_HUFFMAN_TREE_H
 
 
