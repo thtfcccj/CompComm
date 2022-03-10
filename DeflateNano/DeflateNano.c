@@ -36,46 +36,6 @@ static const unsigned char _DISTANCEEXTRA[30]  = {
                              Ïà¹Øº¯ÊıÊµÏÖ
 *******************************************************************************/
 
-//--------------------------Êä³öÊı¾İÓÃÍê´¦Àíº¯Êı---------------------------------
-//´Ëº¯ÊıÓ¦½«ÓÃÍêµÄÊı¾İ´ÓºóÃæÇå³ıµô£¬Í¬Ê±½«Î´ÓÃÍêµÄÊı¾İÒÆÖÁÍ·²¿
-//»º³åÇø½«ÓÃÍêÊ±µ÷ÓÃ´Ëº¯Êı,·µ»Ø¸º´¦Àí´íÎó
-static signed char _OutDataEndPro(winWriter_t *out)
-{
-  if(out->LaterPro == NULL) return -1;//Òì³£
-  brsize_t used = out->LaterPro(out); //½»ÓÉÓÃ»§´¦Àí
-  if((used > out->start) || (used > out->capability))
-    return  -2;//Êı¾İÒì³£ 
-  out->start -= used; //Î´´¦ÀíÍêµÄÊı¾İ
-  memcpy(out->data, out->data + used, out->start);//Çåµô´¦ÀíµôµÄÊı¾İ
-  return 0;
-}
-
-//--------------------------´Óµ±Ç°Î»ÖÃÍùÇ°copyÊı¾İ------------------------------
-static signed char _CopyBackward(winWriter_t *out,
-                                 brsize_t backward,//ÍùÇ°Î»ÖÃ(ÓÉµ±Ç°start¿ªÊ¼)
-                                 brsize_t distance)//copy¾àÀë
-{
-  signed char error = 0;
-  while(distance){
-    brsize_t start = out->start;
-    brsize_t CurLen = out->capability - start;
-    if(distance <= CurLen) CurLen = distance;
-    memcpy(out->data + start, out->data + backward, CurLen);
-    start += CurLen;    
-    backward += CurLen;
-    distance -= CurLen; 
-    //Êı¾İÂúÁË
-    if((out->capability - start) < DEFLATE_NANO_OUT_LEAVED_SIZE){
-      out->start = start;
-      error = _OutDataEndPro(out);
-      if(error) break;
-      //²¿·ÖÊı¾İ±»ÒÆ×ßÁË£¬µ±Ç°¾àÀëÒªĞİÕı
-      backward =- (start - out->start);
-    }
-  };
-  return error;
-}
-
 //--------------------------²»Ñ¹ËõÒëÂëº¯Êı-------------------------------------
 //Ô­inflateNoCompression
 static signed char _InflateNoCompression(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»ÂëÁ÷
@@ -95,7 +55,7 @@ static signed char _InflateNoCompression(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ
   reader->bp = bytepos << 3u;
 
   /*check if 16-bit nLen is really the one's complement of Len*/
-  if(!(out->Cfg & WIN_WRITER_IGNORE_NLEN) && ((Len + nLen) != 65535)){//³¤¶ÈĞ£Ñé´íÎó
+  if(!(out->Cfg & DEFLATE_NANO_IGNORE_NLEN) && ((Len + nLen) != 65535)){//³¤¶ÈĞ£Ñé´íÎó
     return 21; /*error: nLen is not one's complement of Len*/
   }
   //´ÓÔ´µ½³öcopyÊı¾İ
@@ -108,7 +68,7 @@ static signed char _InflateNoCompression(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ
     out->start += CurLen;
     Len -= CurLen;
     if((out->capability - out->start) < DEFLATE_NANO_OUT_LEAVED_SIZE){
-      error = _OutDataEndPro(out);
+      error = winWriter_OutData(out);
       if(error) break;
     }
   };
@@ -119,9 +79,10 @@ static signed char _InflateNoCompression(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ
 
 //--------------------------ÄÚ²¿¹ş·òÂüÊ÷ÒëÂëº¯Êı-------------------------------------
 //Ô­inflateHuffmanBlock
-static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»ÂëÁ÷
-                                 winWriter_t *out, //ÒÑ×¼±¸ºÃµÄ½ÓÊÕÊı¾İ»º³å
-                                 unsigned char btype)  //1¹Ì¶¨¹ş·òÂüÊ÷,·ñÔò¶¯Ì¬
+static signed char _InflateHuffmanBlock(struct _DeflateNano *pDeflate,
+                                         bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»ÂëÁ÷
+                                         winWriter_t *out, //ÒÑ×¼±¸ºÃµÄ½ÓÊÕÊı¾İ»º³å
+                                         unsigned char btype)  //1¹Ì¶¨¹ş·òÂüÊ÷,·ñÔò¶¯Ì¬
 {
 
   const HuffmanTree_t *tree_ll; /*the huffman tree for literal and length codes*/
@@ -134,8 +95,7 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
     tree_d = HuffmanTree_pGetFixD();    
   }
   else{ //if(btype == 2),´ÓÊı¾İÖĞ¶ÁÈ¡ÒÔ´´½¨¶¯Ì¬¹ş·òÂüÊ÷
-    error = HuffmanTree_UpdateDync(DeflateNono_cbGetuffmanTreeMng(),
-                                   DeflateNono_cbGetuffmanTreeBuf(),reader);
+    error = HuffmanTree_UpdateDync(&pDeflate->HfMng, &pDeflate->HfBuf, reader);
     if(error) return error; //²»³É¹¦»òÊäÈëÊı¾İÓĞÎó
     tree_ll = HuffmanTree_pGetDyncLL();
     tree_d = HuffmanTree_pGetDyncD();     
@@ -147,11 +107,12 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
     /* ensure enough bits for 2 huffman code reads (15 bits each): if the first is a literal, a second literal is read at once. This
     appears to be slightly faster, than ensuring 20 bits here for 1 huffman symbol and the potential 5 extra bits for the length symbol.*/
     ensureBits32(reader, 30);//¼ÌĞø¶ÁÈ¡×Ö½Ú(ÒÑ¶ÁÈ¡µÄ²»±ä)ÖÁbuffer£¬È·±£×îÉÙ30¸öbit
-    code_ll = HuffmanTree_DecodeSymbol(reader, tree_ll);//µÃµ½½âÑ¹ºóµÄ³¤¶ÈÓëÏÂ¸ö·ûºÅ×éºÏÖµ
+    //µÃµ½½âÑ¹ºóµÄ³¤¶ÈÓëÏÂ¸ö·ûºÅ×éºÏÖµ
+    code_ll = HuffmanTree_DecodeSymbol(&pDeflate->HfMng, reader, tree_ll);
     if(code_ll <= 255) {//±íÊ¾ÏÂ¸öÑ¹Ëõ×Ö½ÚÊı
       /*slightly faster code path if multiple literals in a row*/
       out->data[out->start++] = (unsigned char)code_ll; //Ñ¹ÈëÕæÊµÊı¾İ
-      code_ll = HuffmanTree_DecodeSymbol(reader, tree_ll); //¼ÌĞøÏÂ¸öÑ¹ËõÊı¾İ½âÂë
+      code_ll = HuffmanTree_DecodeSymbol(&pDeflate->HfMng, reader, tree_ll); //¼ÌĞøÏÂ¸öÑ¹ËõÊı¾İ½âÂë
     }
     if(code_ll <= 255) /*literal symbol*/ {//±íÊ¾ÏÂ¸öÑ¹Ëõ×Ö½ÚÊı
       out->data[out->start++] = (unsigned char)code_ll;//¼ÌĞøÏÂ¸öÑ¹ËõÊı¾İ½âÂë
@@ -177,7 +138,7 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
 
       /*part 3: get distance code*/
       ensureBits32(reader, 28); /* up to 15 for the huffman symbol, up to 13 for the extra bits *///¼ÌĞø¶ÁÈ¡ÖÁ»º³åÒÔ»ñµ½copy¾àÀë
-      code_d = HuffmanTree_DecodeSymbol(reader, tree_d); //½âÑ¹µÃµ½¾àÀë´úÂë
+      code_d = HuffmanTree_DecodeSymbol(&pDeflate->HfMng, reader, tree_d); //½âÑ¹µÃµ½¾àÀë´úÂë
       if(code_d > 29) {
         if(code_d <= 31) {
           _ERROR_BREAK(18); /*error: invalid distance code (30-31 are never used)*/
@@ -201,14 +162,15 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
 
       out->start += length;//Ô¤ÖÃcopyÁËÕâÃ´¶à¸ö
       //ĞèÒªcopyµÄÊı¾İºÜ½üÇÒÏÖÔÚÊı¾İ²»¹»copyÁË
-      if(distance < length) {
-        if(_CopyBackward(out, backward, distance)) _ERROR_BREAK(17);//¹»µÄ²¿·ÖÖ±½Ómemcpy
+      if(distance < length) { 
+        if(winWriter_CopyBackward(out, backward, distance,//¹»µÄ²¿·ÖÖ±½Ómemcpy
+                           DEFLATE_NANO_OUT_LEAVED_SIZE)) _ERROR_BREAK(17);
         start = out->start;//ÖØĞÂ»º³å£¬out->startÒÑ¼ÓÉÏdistanceÁË
         for(brsize_t forward = distance; forward < length; ++forward) {//²»¹»²¿·Ö´°¿ÚÏòÇ°»¬¶¯
           out->data[start++] = out->data[backward++];
         }
       }else {//ºÜ¿¿Ç°×ã¹»copyÁË£¬Ö±½Ómemcpy
-        if(_CopyBackward(out, backward, length)) //¹»µÄ²¿·ÖÖ±½Ómemcpy
+        if(winWriter_CopyBackward(out, backward, length, DEFLATE_NANO_OUT_LEAVED_SIZE)) 
           _ERROR_BREAK(17);
       }
     }
@@ -220,7 +182,7 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
     }
     //ÓàÏÂ¿Õ¼ä²»¶àÁË
     if((out->capability - out->start) < DEFLATE_NANO_OUT_LEAVED_SIZE){
-      error = _OutDataEndPro(out);
+      error = winWriter_OutData(out);
     }
     /*check if any of the ensureBits above went out of bounds*/
     if(reader->bp > reader->bitsize) {
@@ -230,39 +192,39 @@ static signed char _InflateHuffmanBlock(bReader_t *reader,    //ÒÑ×¼±¸ºÃµÄÊäÈëÎ»
       _ERROR_BREAK(51); /*error, bit pointer jumps past memory*/
     }
   }
-
   return error;
 }
 
-
 //--------------------------------ÒëÂëº¯Êı-------------------------------------
 //Ô­inflateHuffmanBlock
-signed char DeflateNano_Decoder(const unsigned char *data,//ÊäÈëÊı¾İÁ÷
+signed char DeflateNano_Decoder(struct _DeflateNano *pDeflate,
+                                const unsigned char *data,//ÊäÈëÊı¾İÁ÷
                                  brsize_t insize,           //Êı¾İ¸öÊı
                                  winWriter_t *out)     //ÒÑ×¼±¸ºÃµÄ½ÓÊÕÊı¾İ»º³å
 {
   if(bReader_SizeIsInvalid(insize)) return -1;//³¬¹ı»º³å¼«ÏŞ
-  bReader_t reader;
-  bReader_Init(&reader, data, insize);
+  bReader_t *reader = &pDeflate->Reader;
+  bReader_Init(reader, data, insize);
   
   signed char error = 0;
   unsigned BFINAL = 0; 
   while(!BFINAL) {
     unsigned BTYPE;
-    if(reader.bitsize - reader.bp < 3) return 52; /*error, bit pointer will jump past memory*/
-    ensureBits9(&reader, 3); //¶Á³öÖÁ»º´æ×îÉÙ3bit£¬Êµ¼ÊË«×Ö
-    BFINAL = readBits(&reader, 1);//´Ó»º´æÈ¡³ö1bit,Í¬Ê±ÏòÏÂÒÆÎ»1bit£¬BFINAL´ËÎ»ÖÃÎ»±íÊ¾½áÊø
-    BTYPE = readBits(&reader, 2);//¼ÌĞø´Ó»º´æÈ¡³ö2bit
+    if(reader->bitsize - reader->bp < 3) return 52; /*error, bit pointer will jump past memory*/
+    ensureBits9(reader, 3); //¶Á³öÖÁ»º´æ×îÉÙ3bit£¬Êµ¼ÊË«×Ö
+    BFINAL = readBits(reader, 1);//´Ó»º´æÈ¡³ö1bit,Í¬Ê±ÏòÏÂÒÆÎ»1bit£¬BFINAL´ËÎ»ÖÃÎ»±íÊ¾½áÊø
+    BTYPE = readBits(reader, 2);//¼ÌĞø´Ó»º´æÈ¡³ö2bit
 
     if(BTYPE == 3) 
       return 20; /*error: invalid BTYPE*/
     else if(BTYPE == 0)
-      error = _InflateNoCompression(&reader, out); /*no compression*/
+      error = _InflateNoCompression(reader, out); /*no compression*/
     else 
-      error = _InflateHuffmanBlock(&reader, out, BTYPE); /*compression, BTYPE 01 or 10*/
+      error = _InflateHuffmanBlock(pDeflate, reader, out, BTYPE); /*compression, BTYPE 01 or 10*/
     
     if(!error){
-      if(out->MaxOutSize && out->start > out->MaxOutSize) error = 109;
+      if(out->MaxOutSize && ((out->OutedSize + out->start) > out->MaxOutSize))
+        error = 109;
     }
     if(error) break;
   }

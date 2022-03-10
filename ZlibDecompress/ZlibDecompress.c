@@ -14,7 +14,8 @@
 
 //--------------------------------ZLib解压缩------------------------------------
 //原lodepng_zlib_decompressv
-signed char ZlibDecompress(const unsigned char *in, //压缩数据包
+signed char ZlibDecompress(struct _ZlibDecompress *pZ,
+                           const unsigned char *in, //压缩数据包
                            brsize_t insize,           //idat区数据个数
                            winWriter_t *out)     //已准备好的接收数据缓冲
 {
@@ -44,13 +45,13 @@ signed char ZlibDecompress(const unsigned char *in, //压缩数据包
     return 26;
   }
 
-  error = DeflateNano_Decoder(in + 2, insize - 2, out); //去除数据头了
+  error = DeflateNano_Decoder(pZ, in + 2, insize - 2, out); //去除数据头了
   if(error) return error;
 
   //校验数据完整性
-  if(!out->Cfg & WIN_WRITER_EN_CHECK){
+  if(!out->Cfg & ZLIB_DECOMPRESS_EN_CHECK){
     unsigned ADLER32 = MsbFull2L(&in[insize - 4]);//字节转u32,校验压缩数据是否正确
-    unsigned checksum = Adler32_Get(out->Checksum,
+    unsigned checksum = Adler32_Get(out->U32Para,//用作Checksum
                                     out->data, 
                                     (unsigned)(out->start));
     if(checksum != ADLER32) return 58; /*error, adler checksum not correct, data must be corrupted*/

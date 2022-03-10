@@ -10,7 +10,6 @@
 #include "HuffmanTree.h"
 #include <string.h>
 
-
 //struct _HuffmanTreeMng _HuffmanTreeMng;//容量测试
 //struct _HuffmanTreeBuf _HuffmanTreeBuf;//容量测试
 
@@ -19,20 +18,18 @@
 *******************************************************************************/
 
 //------------------------pHuffmanTreeMng内相关操作宏---------------------------
-struct _HuffmanTreeMng *pHuffmanTreeMng;
-#define _HuffmanTree(id)  pHuffmanTreeMng->HuffmanTree[id]
-#define _table_len(id)    pHuffmanTreeMng->table_len[id]
-#define _table_value(id)  pHuffmanTreeMng->table_value[id]
+#define _HuffmanTree(id)  pMng->HuffmanTree[id]
+#define _table_len(id)    pMng->table_len[id]
+#define _table_value(id)  pMng->table_value[id]
 
 //------------------------HuffmanTreeBuf内相关操作宏-----------------------------
-static struct _HuffmanTreeBuf  *_buf; //内部缓冲
-#define _codes      _buf->m.codes
-#define _bitlen_ll  _buf->m.bitlen_ll
-#define _bitlen_d   _buf->m.bitlen_d
+#define _codes      pBuf->m.codes
+#define _bitlen_ll  pBuf->m.bitlen_ll
+#define _bitlen_d   pBuf->m.bitlen_d
 
-#define _blcount   _buf->u.makecodes.blcount
-#define _nextcode  _buf->u.makecodes.nextcode
-#define _maxlens   _buf->u.makeTables.maxlens
+#define _blcount   pBuf->u.makecodes.blcount
+#define _nextcode  pBuf->u.makecodes.nextcode
+#define _maxlens   pBuf->u.makeTables.maxlens
 
 //内部复用：
 #define _HUFFMAN_TREE_CL  0  //0
@@ -86,7 +83,9 @@ static void _init(HuffmanTree_t *tree)
 //----------------------------生成查找表-----------------------------
 //生成table_len，table_value以在解码时调用HuffmanTree_makeTable
 //得到解码需要的查找表
-static signed char _makeTable(unsigned char id)
+static signed char _makeTable(struct _HuffmanTreeMng *pMng,
+                               struct _HuffmanTreeBuf *pBuf,
+                               unsigned char id)
 {
   HuffmanTree_t* tree = &_HuffmanTree(id);
   
@@ -201,8 +200,10 @@ static signed char _makeTable(unsigned char id)
 
 
 //----------------------------从长度生成树2-----------------------------
-//建立码表tree->codes，原HuffmanTree_makeFromLengths2
-static void _makeFromLengths2(HuffmanTree_t* tree)
+//建立码表tree->codes，原_makeFromLengths2
+static void _makeFromLengths2(struct _HuffmanTreeMng *pMng,
+                               struct _HuffmanTreeBuf *pBuf,
+                              HuffmanTree_t* tree)
 {
   unsigned bits, n;
   unsigned long *codes = _codes;
@@ -228,34 +229,30 @@ static void _makeFromLengths2(HuffmanTree_t* tree)
 }
 
 //----------------------------从长度生成树-------------------------------
-static signed char _makeFromLengths(unsigned char id,
-                                    unsigned long * bitlen,
-                                  brsize_t numcodes, 
-                                  unsigned long maxbitlen)
+static signed char _makeFromLengths(struct _HuffmanTreeMng *pMng,
+                                     struct _HuffmanTreeBuf *pBuf,
+                                     unsigned char id,
+                                     unsigned long * bitlen,
+                                     brsize_t numcodes, 
+                                     unsigned long maxbitlen)
 {
   HuffmanTree_t* tree = &_HuffmanTree(id);
   tree->lengths = bitlen;
   tree->numcodes = (unsigned)numcodes; /*number of symbols*/
   tree->maxbitlen = maxbitlen;
-  _makeFromLengths2(tree);  //生成tree->codes
+  _makeFromLengths2(pMng, pBuf, tree);  //生成tree->codes
   //生成table_len，table_value以在解码时调用HuffmanTree_makeTable
   //得到解码需要的查找表
-  return _makeTable(id);
+  return _makeTable(pMng, pBuf,id);
 }
-//原函数
-#define HuffmanTree_makeFromLengths(t,b,n,m) _makeFromLengths(t,b,n,m)
-
 //----------------------------更新动态哈夫曼结构-------------------------------
 //原getTreeInflateDynamic, 更新前调用,返回非0有误
 //此函数根据位流更新动态结构
-signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传入
-                                     struct _HuffmanTreeBuf *buf,//分配好内存再传入
+signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *pMng,//分配好内存再传入
+                                     struct _HuffmanTreeBuf *pBuf,//分配好内存再传入
                                      bReader_t *reader)
 
 {
-  pHuffmanTreeMng = mng;
-  _buf = buf;  
-  
  /*make sure that length values that aren't filled in will be 0, or a wrong tree will be generated*/
   unsigned error = 0;
   unsigned n, HLIT, HDIST, HCLEN, i;
@@ -286,7 +283,9 @@ signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传
       bitlen_cl[CLCL_ORDER[i]] = 0;
     }
 
-    error = _makeFromLengths(_HUFFMAN_TREE_CL, bitlen_cl, HUFFMAN_TREE_NUM_CODE_LENGTH_CODES, 7); //得到查表值
+    error = _makeFromLengths(pMng, pBuf,
+                             _HUFFMAN_TREE_CL, bitlen_cl, 
+                             HUFFMAN_TREE_NUM_CODE_LENGTH_CODES, 7); //得到查表值
     if(error) break;
 
     unsigned long *bitlen_ll = _bitlen_ll;
@@ -299,7 +298,7 @@ signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传
     while(i < HLIT + HDIST) {
       unsigned code;
       ensureBits25(reader, 22); /* up to 15 bits for huffman code, up to 7 extra bits below*/
-      code = HuffmanTree_DecodeSymbol(reader, &_tree_cl);
+      code = HuffmanTree_DecodeSymbol(pMng, reader, &_tree_cl);
       if(code <= 15) /*a length code*/ {
         if(i < HLIT) bitlen_ll[i] = code;
         else bitlen_d[i - HLIT] = code;
@@ -365,9 +364,11 @@ signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传
     if(bitlen_ll[256] == 0) _ERROR_BREAK(64); /*the length of the end code 256 must be larger than 0*/
 
     /*now we've finally got HLIT and HDIST, so generate the code trees, and the function is done*/
-    error = HuffmanTree_makeFromLengths(HUFFMAN_TREE_LL, bitlen_ll, HUFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS, 15);
+    error = _makeFromLengths(pMng, pBuf,HUFFMAN_TREE_LL, bitlen_ll, 
+                             HUFFMAN_TREE_NUM_DEFLATE_CODE_SYMBOLS, 15);
     if(error) break;
-    error = HuffmanTree_makeFromLengths(HUFFMAN_TREE_D, bitlen_d, HUFFMAN_TREE_NUM_DISTANCE_SYMBOLS, 15);
+    error = _makeFromLengths(pMng, pBuf,HUFFMAN_TREE_D, bitlen_d, 
+                             HUFFMAN_TREE_NUM_DISTANCE_SYMBOLS, 15);
 
     break; /*end of error-while*/
   }
@@ -377,7 +378,8 @@ signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传
 
 //---------------------------------哈夫曼译码-----------------------------
 //原HuffmanTree_DecodeSymbol
-unsigned short HuffmanTree_DecodeSymbol(bReader_t *reader, 
+unsigned short HuffmanTree_DecodeSymbol(struct _HuffmanTreeMng *pMng,//已UpdateDync()
+                                         bReader_t *reader, 
                                          const HuffmanTree_t* codetree)
 {
   unsigned short code = peekBits(reader, HUFFMAN_TREE_FIRSTBITS);//从缓冲区读取对应掩码数据

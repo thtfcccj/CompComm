@@ -50,28 +50,28 @@ void bReader_Init(bReader_t *reader,
                   brsize_t size);
              
 //-------------------------------缓冲至少9b------------------------------------
-//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=9b
+//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=9b，LSB低位在前
 void bReader_2BufferB9(bReader_t* reader);
 //建议使用此函数以说明实际需要的字节个数：
 #define bReader_BufferB9(rd, needbits) do{bReader_2BufferB9(rd); }while(0)
 #define ensureBits9(r,n)  bReader_BufferB9(r, n) //兼容性考虑
 
 //-------------------------------缓冲至少17b------------------------------------
-//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=17b
+//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=17b，LSB低位在前
 void bReader_2BufferB17(bReader_t* reader);
 //建议使用此函数以说明实际需要的字节个数：
 #define bReader_BufferB17(rd, needbits) do{bReader_2BufferB17(rd); }while(0)
 #define ensureBits17(r,n)  bReader_BufferB17(r, n) //兼容性考虑
 
 //-------------------------------缓冲至少25b------------------------------------
-//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=25b
+//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=25b，LSB低位在前
 void bReader_2BufferB25(bReader_t* reader);
 //建议使用此函数以说明实际需要的字节个数：
 #define bReader_BufferB25(rd, needbits) do{bReader_2BufferB25(rd); }while(0)
 #define ensureBits25(r,n)  bReader_BufferB25(r, n) //兼容性考虑
 
 //-------------------------------缓冲至少32b------------------------------------
-//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=32b
+//读取数据到buffer中，确保当前缓冲buffer内的最低有效位>=32b，LSB低位在前
 void bReader_2BufferB32(bReader_t* reader);
 //建议使用此函数以说明实际需要的字节个数：
 #define bReader_BufferB32(rd, needbits) do{bReader_2BufferB32(rd); }while(0)

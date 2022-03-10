@@ -6,7 +6,7 @@
 此模块为重新整理以学习分析代码以为加深印像，并符合现编码规则，以方便使用
 此模块针对嵌入式系统做了优化,固定哈夫曼改为常量，并维护两动态结构且不需分配内存
 
-此模块不支持多线程调用！
+此模块支持多线程调用！
 *******************************************************************************/
 #ifndef _HUFFMAN_TREE_H
 #define _HUFFMAN_TREE_H
@@ -59,6 +59,7 @@ extern const struct _HuffmanTree HuffmanTree_FixD;//计算好的固定距离哈夫曼结构
 extern const struct _HuffmanTree HuffmanTree_FixLL;//计算好的固定值与长度哈夫曼结构
 
 //--------------------------动态哈夫曼管理器-----------------------------------
+//在HuffmanTree_UpdateDync()中使用，哈夫曼译码结束可释放
 struct _HuffmanTreeMng{
   //缓冲的动态哈夫曼结构
   struct _HuffmanTree HuffmanTree[2]; 
@@ -114,13 +115,14 @@ struct _HuffmanTreeBuf{
 //----------------------------更新动态哈夫曼结构-------------------------------
 //原getTreeInflateDynamic, 更新前调用,返回非0有误
 //此函数根据位流更新动态结构
-signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *mng,//分配好内存再传入
-                                     struct _HuffmanTreeBuf *buf,//分配好内存再传入
+signed short HuffmanTree_UpdateDync(struct _HuffmanTreeMng *pMng,//分配好内存再传入
+                                     struct _HuffmanTreeBuf *pBuf,//分配好内存再传入
                                      bReader_t *reader);
 
 //------------------------------------哈夫曼译码------------------------------
 //原huffmanDecodeSymbol
-unsigned short HuffmanTree_DecodeSymbol(bReader_t *reader, 
+unsigned short HuffmanTree_DecodeSymbol(struct _HuffmanTreeMng *pMng,//已UpdateDync()
+                                         bReader_t *reader, 
                                          const HuffmanTree_t* codetree);
 
 #endif //_HUFFMAN_TREE_H
