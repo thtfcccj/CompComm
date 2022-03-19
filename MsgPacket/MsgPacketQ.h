@@ -16,7 +16,6 @@ struct _MsgPacketQ{
   //功能编码相关:
   struct _SoftQ *pMsgQ;     //接收消息的软件队列, 队列长度>=3(3为仅写一个数据时)
   struct _MsgPacket RdMsg;  //缓冲最后一次收到的消息
-  unsigned char RetryIndex; //数据未成功时，重试次数
 };
 
 /***********************************************************************
