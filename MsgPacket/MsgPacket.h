@@ -34,13 +34,16 @@ struct _MsgPacket{
 //------------------------------功读写及类型---------------------------------
 #define MsgPacket_GetType(msgPacket) ((msgPacket)->TypeFun &  MSG_PACKET_TYPE)
 #define MsgPacket_IsRdRw(msgPacket) \
-                       (MsgPacket_GetFunType(msgPacket) == MSG_PACKET_RD_RW)
+                       (MsgPacket_GetType(msgPacket) == MSG_PACKET_RD_RW)
 #define MsgPacket_IsRdRo(msgPacket) \
-                       (MsgPacket_GetFunType(msgPacket) == MSG_PACKET_RD_RO)
+                       (MsgPacket_GetType(msgPacket) == MSG_PACKET_RD_RO)
 #define MsgPacket_IsWrRw(msgPacket) \
-                       (MsgPacket_GetFunType(msgPacket) == MSG_PACKET_WR_RW)                         
+                       (MsgPacket_GetType(msgPacket) == MSG_PACKET_WR_RW)                         
 #define MsgPacket_IsWrWo(msgPacket) \
-                       (MsgPacket_GetFunType(msgPacket) == MSG_PACKET_WR_WO) 
+                       (MsgPacket_GetType(msgPacket) == MSG_PACKET_WR_WO) 
+//方向判断
+#define MsgPacket_IsWr(msgPacket) ((msgPacket)->TypeFun &  0x80)                         
+#define MsgPacket_IsRd(msgPacket) (!MsgPacket_IsWr(msgPacket))
                          
 //----------------------------------功能码------------------------------------- 
 #define MsgPacket_GetFun(msgPacket) ((msgPacket)->TypeFun &  0x3C)

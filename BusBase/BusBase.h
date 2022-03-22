@@ -27,6 +27,9 @@ struct _BusBase{
 #define BusBase_Init(bus, id) do{\
   memset(bus, 0, sizeof(struct _BusBase)); (bus)->Id = id; }while(0)
 
+//--------------------------由总线ID得主结构--------------------------------
+#define BusBase_cbGet(busId) ((struct _BusBase*)BusCount_pcbGet(busId))
+    
 #endif
 
 

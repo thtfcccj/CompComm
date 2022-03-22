@@ -18,6 +18,12 @@ struct _BusCount{
 #include <string.h>
 #define BusCount_Init(p) do{memset(p, 0, sizeof(struct _BusCount));} while(0)
 
+//--------------------------由总线ID得主结构--------------------------------
+//此为回调函数由应用实现，可通过此函数转换以获得派生类
+struct _BusCount *BusCount_pcbGet(unsigned char BusId);
+
+
+
 #endif
 
 
