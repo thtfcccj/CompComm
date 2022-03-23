@@ -51,18 +51,9 @@ static const unsigned char CLCL_ORDER[HUFFMAN_TREE_NUM_CODE_LENGTH_CODES]= {
 #define _ERROR_BREAK(num)  return (num)
 #define _gtofl(bp, needbit, count)  (((bp) + (needbit)) > (count))
 
-#ifndef _MAX
-  #define _MAX(a, b) (((a) > (b)) ? (a) : (b))
+#ifndef _MAX0
+  #define _MAX0(a, b) (((a) > (b)) ? (a) : (b))
 #endif 
-
-#ifndef _MIN
-  #define _MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef _ABS
-  #define _ABS(x) ((x) < 0 ? -(x) : (x))
-#endif
-
 
 static unsigned reverseBits(unsigned bits, unsigned num) {
   /*TODO: implement faster lookup table based version when needed*/
@@ -103,7 +94,7 @@ static signed char _makeTable(struct _HuffmanTreeMng *pMng,
     if(l <= HUFFMAN_TREE_FIRSTBITS) continue; /*symbols that fit in first table don't increase secondary table size*/
     /*get the HUFFMAN_TREE_FIRSTBITS MSBs, the MSBs of the symbol are encoded first. See later comment about the reversing*/
     index = reverseBits(symbol >> (l - HUFFMAN_TREE_FIRSTBITS), HUFFMAN_TREE_FIRSTBITS);
-    maxlens[index] = _MAX(maxlens[index], l);
+    maxlens[index] = _MAX0(maxlens[index], l);
   }
   /* compute total table size: size of first table plus all secondary tables for symbols longer than HUFFMAN_TREE_FIRSTBITS */
   size = headsize;

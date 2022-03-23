@@ -7,6 +7,9 @@
 #include "DeflateNano.h"
 #include <string.h>
 
+//此管理器在使用动态哈夫曼树时，需一直保持数据的完整性
+struct _HuffmanTreeMng *pHuffmanTreeMng;
+
 //--------------------------常量查找有定义--------------------------------------
 /*the base lengths represented by codes 257-285*/
 static const unsigned short _LENGTHBASE[29]= {
