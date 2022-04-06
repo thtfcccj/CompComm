@@ -25,8 +25,8 @@ const struct _BusCount *BusCountTMenu_pcbGet(void);
 
 //----------------------------自已的父菜单----------------------------------
 #ifndef BUS_COUNT_TMENU_PARENT
-  extern  TMenu_t Menu_Buf; //可能有多个派生类，用RAM实现
-  #define BUS_COUNT_TMENU_PARENT  &Menu_Buf
+  extern const TMenu_t BusMng_TMenu; 
+  #define BUS_COUNT_TMENU_PARENT  &BusMng_TMenu
 #endif
 
 #endif //_DI_DEV_TMENU_H
