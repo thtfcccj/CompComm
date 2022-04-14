@@ -81,7 +81,7 @@ void bReader_2BufferB32(bReader_t* reader);
 //原peekBits,如：需要10位，则最大返回 (1 >> 10) - 1 = 1023
 unsigned long bReader_PeekB(bReader_t* reader, 
                              unsigned char needbits);//需要的位数
-#define peekBits(r,n)  bReader_RdB(r,n)  //兼容性考虑
+#define peekBits(r,n)  bReader_PeekB(r,n)  //兼容性考虑
 
 //------------------------------推进位数据-------------------------------
 //原AdvanceBits,将数据流向前推进

@@ -7,9 +7,6 @@
 #include "DeflateNano.h"
 #include <string.h>
 
-//此管理器在使用动态哈夫曼树时，需一直保持数据的完整性
-struct _HuffmanTreeMng *pHuffmanTreeMng;
-
 //--------------------------常量查找有定义--------------------------------------
 /*the base lengths represented by codes 257-285*/
 static const unsigned short _LENGTHBASE[29]= {
@@ -100,8 +97,8 @@ static signed char _InflateHuffmanBlock(struct _DeflateNano *pDeflate,
   else{ //if(btype == 2),从数据中读取以创建动态哈夫曼树
     error = HuffmanTree_UpdateDync(&pDeflate->HfMng, &pDeflate->HfBuf, reader);
     if(error) return error; //不成功或输入数据有误
-    tree_ll = HuffmanTree_pGetDyncLL();
-    tree_d = HuffmanTree_pGetDyncD();     
+    tree_ll = &pDeflate->HfMng.HuffmanTree[HUFFMAN_TREE_LL];
+    tree_d = &pDeflate->HfMng.HuffmanTree[HUFFMAN_TREE_D];   
   }
 
   while(!error && !done){ /*decode all symbols until end reached, breaks at end code*/ 
@@ -163,19 +160,19 @@ static signed char _InflateHuffmanBlock(struct _DeflateNano *pDeflate,
       if(distance > start) _ERROR_BREAK(52); /*too long backward distance*/
       backward = start - distance;//往前coopy位置
 
-      out->start += length;//预置copy了这么多个
       //需要copy的数据很近且现在数据不够copy了
       if(distance < length) { 
         if(winWriter_CopyBackward(out, backward, distance,//够的部分直接memcpy
                            DEFLATE_NANO_OUT_LEAVED_SIZE)) _ERROR_BREAK(17);
-        start = out->start;//重新缓冲，out->start已加上distance了
-        for(brsize_t forward = distance; forward < length; ++forward) {//不够部分窗口向前滑动
+        start += distance;
+        for(brsize_t forward = distance; forward < length; forward++) {//不够部分窗口向前滑动
           out->data[start++] = out->data[backward++];
         }
       }else {//很靠前足够copy了，直接memcpy
         if(winWriter_CopyBackward(out, backward, length, DEFLATE_NANO_OUT_LEAVED_SIZE)) 
           _ERROR_BREAK(17);
       }
+      out->start += length;//copy了这么多个      
     }
     else if(code_ll == 256) {//此值表示结束了
       done = 1; /*end code, finish the loop*/

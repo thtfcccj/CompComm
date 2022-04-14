@@ -67,7 +67,6 @@ signed char winWriter_CopyBackward(winWriter_t *out,
     if(distance <= CurLen) CurLen = distance;
     memcpy(out->data + start, out->data + backward, CurLen);
     start += CurLen;  
-    out->start = start;
     backward += CurLen;
     distance -= CurLen; 
     //สýพÝย๚มห

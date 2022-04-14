@@ -19,8 +19,7 @@ signed char ZlibDecompress(struct _ZlibDecompress *pZ,
                            brsize_t insize,           //idat区数据个数
                            winWriter_t *out)     //已准备好的接收数据缓冲
 {
- unsigned error = 0;
-  unsigned CM, CINFO, FDICT;
+  unsigned char CM, CINFO, FDICT;
 
   if(insize < 2) return 53; /*error, size of zlib data too small*/
   /*read information from zlib header*/
@@ -45,16 +44,17 @@ signed char ZlibDecompress(struct _ZlibDecompress *pZ,
     return 26;
   }
 
-  error = DeflateNano_Decoder(pZ, in + 2, insize - 2, out); //去除数据头了
+  signed char error = DeflateNano_Decoder(pZ, in + 2, insize - 2, out); //去除数据头了
   if(error) return error;
 
   //校验数据完整性
-  if(!out->Cfg & ZLIB_DECOMPRESS_EN_CHECK){
-    unsigned ADLER32 = MsbFull2L(&in[insize - 4]);//字节转u32,校验压缩数据是否正确
-    unsigned checksum = Adler32_Get(out->U32Para,//用作Checksum
-                                    out->data, 
-                                    (unsigned)(out->start));
-    if(checksum != ADLER32) return 58; /*error, adler checksum not correct, data must be corrupted*/
+  if(out->Cfg & ZLIB_DECOMPRESS_EN_CHECK){
+    unsigned long checksum;
+    if(out->OutedSize == 0) checksum = 1;//起始
+    else checksum = out->U32Para;
+    checksum = Adler32_Get(checksum, out->data, out->start);
+    if(checksum != MsbFull2L(&in[insize - 4])) 
+       return 58; /*error, adler checksum not correct, data must be corrupted*/
   }
 
   return 0; /*no error*/

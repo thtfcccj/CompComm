@@ -69,10 +69,6 @@ struct _HuffmanTreeMng{
   unsigned short table_value[2][1u << HUFFMAN_TREE_FIRSTBITS]; 
 };
 
-//此管理器在使用动态哈夫曼树时，需一直保持数据的完整性
-extern struct _HuffmanTreeMng *pHuffmanTreeMng;
-
-
 //---------------------------动态哈夫曼内部内存缓冲器---------------------------
 //在HuffmanTree_UpdateDync()中使用，退出即可释放
 struct _HuffmanTreeBuf{
@@ -103,10 +99,6 @@ struct _HuffmanTreeBuf{
 
 //----------------------------得到哈夫曼结构-------------------------------
 //仅供解码使用
-//得到刚由HuffmanTree_UpdateDync()创建的动态距离哈夫曼结构
-#define HuffmanTree_pGetDyncD()  &(pHuffmanTreeMng->HuffmanTree[HUFFMAN_TREE_LL])
-//得到刚由HuffmanTree_UpdateDync()创建的动态值与长度哈夫曼结构
-#define HuffmanTree_pGetDyncLL()  (&pHuffmanTreeMng->HuffmanTree[HUFFMAN_TREE_D])
 //得到固定距离哈夫曼结构
 #define HuffmanTree_pGetFixD()  &HuffmanTree_FixD;
 //得到固定值与长度哈夫曼结构
