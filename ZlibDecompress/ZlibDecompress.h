@@ -13,7 +13,6 @@
 #include "winWriter.h"
 #include "DeflateNano.h"
 
-
 //--------------------------------------主结构------------------------------
 #define _ZlibDecompress   _DeflateNano //结构重命名,直接继承
 
@@ -31,6 +30,9 @@ signed char ZlibDecompress(struct _ZlibDecompress *pZ,//无需初始化
                            brsize_t insize,           //idat区数据个数
                            winWriter_t *out);     //接收数据缓冲，见声明
 
+
+//------------------------回调函数:得到校验结果-------------------------------
+unsigned long ZlibDecompress_cbGetAdler32(winWriter_t *out); //接收数据缓冲
 
 #endif //_PNG_IDAT_DECODER_H
 

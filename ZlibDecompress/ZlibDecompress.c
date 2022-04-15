@@ -49,11 +49,7 @@ signed char ZlibDecompress(struct _ZlibDecompress *pZ,
 
   //校验数据完整性
   if(out->Cfg & ZLIB_DECOMPRESS_EN_CHECK){
-    unsigned long checksum;
-    if(out->OutedSize == 0) checksum = 1;//起始
-    else checksum = out->U32Para;
-    checksum = Adler32_Get(checksum, out->data, out->start);
-    if(checksum != MsbFull2L(&in[insize - 4])) 
+    if(ZlibDecompress_cbGetAdler32(out) != MsbFull2L(&in[insize - 4])) 
        return 58; /*error, adler checksum not correct, data must be corrupted*/
   }
 
