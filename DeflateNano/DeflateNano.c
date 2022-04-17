@@ -122,7 +122,7 @@ static signed char _InflateHuffmanBlock(struct _DeflateNano *pDeflate,
             code_ll <= HUFFMAN_TREE_LAST_LENGTH_CODE_INDEX){ /*length code*/ 
       unsigned short code_d, distance;
       unsigned char numextrabits_l, numextrabits_d; /*extra bits for length and distance*/
-      brsize_t start, backward, length;
+      brsize_t start, length;
 
       /*part 1: get length base*/;// 257-285值表示的长度
       length = _LENGTHBASE[code_ll - HUFFMAN_TREE_FIRST_LENGTH_CODE_INDEX];
@@ -158,7 +158,7 @@ static signed char _InflateHuffmanBlock(struct _DeflateNano *pDeflate,
       /*part 5: fill in all the out[n] values based on the length and dist*/
       start = out->start; //从以经解码的数里，copy数据，start为目标会增加， 即滑动窗口
       if(distance > start) _ERROR_BREAK(52); /*too long backward distance*/
-      backward = start - distance;//往前coopy位置
+      signed long backward = start - distance;//往前copy起始位置
 
       //需要copy的数据很近且现在数据不够copy了
       if(distance < length) { 

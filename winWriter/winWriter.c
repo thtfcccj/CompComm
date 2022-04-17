@@ -36,7 +36,7 @@ signed char winWriter_Copy(winWriter_t *out,
   while(DataLen){
     brsize_t start = out->start;
     brsize_t CurLen = out->capability - start;
-    if(DataLen <= CurLen) CurLen = DataLen;
+    if(DataLen < CurLen) CurLen = DataLen;
     memcpy(out->data + start, pData, CurLen);
     start += CurLen;    
     out->start = start;    
@@ -56,29 +56,31 @@ signed char winWriter_Copy(winWriter_t *out,
 //此copy用于从输出数据里,copy数据至当前start位置,返回0正常输出,否则异常
 //此copy考虑到copy到start后数据满情况，若如此，则要送出部分数据
 signed char winWriter_CopyBackward(winWriter_t *out,
-                                    brsize_t backward,//往前位置(由当前start开始)
+                                    signed long backward,//往前copy起始位置out->data[0]起
                                     brsize_t distance,//copy距离
                                     brsize_t LeavedSize)//可留下的数据空间
 {
-  if(backward > out->start) return -1;//需copy的数据被移出了，out分配内存太少了
+  if(backward < 0) return -1;//需copy的数据被移出了，out分配内存太少了
       
   signed char error = 0;
   while(distance){
     brsize_t start = out->start;
     brsize_t CurLen = out->capability - start;
     if(distance <= CurLen) CurLen = distance;
-    unsigned char *pCurPos = out->data + start;
-    memcpy(pCurPos, pCurPos - backward, CurLen);
+    memcpy(out->data + start, out->data + backward, CurLen);
     start += CurLen;  
-    //backward = backward;//前向距离随着copy一起向后移动到下次位置了，故不变
+    backward += CurLen;
     distance -= CurLen; 
     //数据满了
     if((out->capability - start) < LeavedSize){
       error = winWriter_OutData(out);
       if(error) break;
       if(!distance) return 0;//完成
+      backward -= (start - out->start); //同时修正
       //部分最老的数据被移走了
-      if(backward > out->start) return -1;//需copy的数据被移出了，out分配内存太少了
+      if(backward < 0) return -1;//需copy的数据被移出了，out分配内存太少了
+      //部分数据被移走了，当前距离要休正
+      
     }
   };
   return error;

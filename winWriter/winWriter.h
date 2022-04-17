@@ -56,7 +56,7 @@ signed char winWriter_Copy(winWriter_t *out,
 //此copy用于从输出数据里,copy数据至当前start位置,返回0正常输出,否则异常
 //此copy考虑到copy到start后数据满情况，若如此，则要送出部分数据
 signed char winWriter_CopyBackward(winWriter_t *out,
-                                    brsize_t backward,//往前位置(由当前start开始)
+                                    signed long backward,//往前位置(由当前start开始)
                                     brsize_t distance,//copy距离
                                     brsize_t LeavedSize);//可留下的数据空间
 
