@@ -44,7 +44,9 @@ static void _Notify(unsigned char Type, void *pv)
     if(pUser->CurItem == 0) Data = pBus->Comm;
     else if(pUser->CurItem == 1) Data = pBus->Valid;  
     else  Data = pBus->Invalid; 
-    pUser->pData = Value4StringMin(Data, TMenuBuf.Str, 8);
+    Value4StringMin(Data, TMenuBuf.Str, 1);
+    pUser->pData = TMenuBuf.Str;
+    BusCountTMenu_cbRealUpdateNotify();//需要实时更新
     break;
   }
   default:break;

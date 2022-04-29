@@ -32,7 +32,7 @@ struct _MsgPacket{
 #define MsgPacket_GetObject(msgPacket) ((msgPacket)->Object)
 
 //------------------------------功读写及类型---------------------------------
-#define MsgPacket_GetType(msgPacket) ((msgPacket)->TypeFun &  MSG_PACKET_TYPE)
+#define MsgPacket_GetType(msgPacket) ((msgPacket)->TypeFun & MSG_PACKET_TYPE)
 #define MsgPacket_IsRdRw(msgPacket) \
                        (MsgPacket_GetType(msgPacket) == MSG_PACKET_RD_RW)
 #define MsgPacket_IsRdRo(msgPacket) \
@@ -46,7 +46,7 @@ struct _MsgPacket{
 #define MsgPacket_IsRd(msgPacket) (!MsgPacket_IsWr(msgPacket))
                          
 //----------------------------------功能码------------------------------------- 
-#define MsgPacket_GetFun(msgPacket) ((msgPacket)->TypeFun &  0x3C)
+#define MsgPacket_GetFun(msgPacket) ((msgPacket)->TypeFun & 0x3F)
                          
 //----------------------------------ID------------------------------------- 
 #define MsgPacket_GetId(msgPacket) ((msgPacket)->Id)                         

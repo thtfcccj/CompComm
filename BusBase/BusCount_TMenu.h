@@ -28,6 +28,9 @@ const struct _BusCount *BusCountTMenu_pcbGet(void);
   extern const TMenu_t BusMng_TMenu; 
   #define BUS_COUNT_TMENU_PARENT  &BusMng_TMenu
 #endif
+  
+//--------------------------------实时更新通报------------------------------
+void BusCountTMenu_cbRealUpdateNotify(void);  
 
 #endif //_DI_DEV_TMENU_H
 
