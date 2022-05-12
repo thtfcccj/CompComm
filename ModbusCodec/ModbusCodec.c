@@ -33,18 +33,27 @@ signed short ModbusCodec_Slv(unsigned char  *pData, //收到的数据
     return (unsigned char)-1;    
 
   RcvLen -= 2;//去除CRC域
-  unsigned short CRC16 = (unsigned short)(pData[RcvLen] << 8) | 
-                         (unsigned short)(pData[RcvLen + 1]); 
-  if(CRC16 != ModbusRtuMng_GetCRC16(pData, RcvLen)) 
-    return (unsigned char)-1;   //CRC数据校验码错误
+  unsigned short CRC16 = ModbusRtuMng_GetCRC16(pData, RcvLen);
+  signed char CrcAnti;
+  if(CRC16 == (((unsigned short)pData[RcvLen] << 8) | pData[RcvLen + 1]))
+    CrcAnti = 0;
+  else if(CRC16 == (((unsigned short)pData[RcvLen + 1] << 8) | pData[RcvLen]))
+    CrcAnti = 1; //反了
+  else return (unsigned char)-1;   //CRC数据校验码错误
 
-  //应用层编码
-  signed short Resume = ModbusCodec_cbEncoder(pData, RcvLen);
-  if(Resume <= 0) return RcvLen; //无需返回或数据有误
+  //应用层编码(去地址传入)
+  signed short Resume = ModbusCodec_cbEncoder(pData + 1, RcvLen - 1);
+  if(Resume <= 0) return Resume; //无需返回或数据有误
   //结果附加：
   CRC16 = ModbusRtuMng_GetCRC16(pData, Resume);
-  pData[Resume] = (unsigned char)(CRC16 >> 8);//CRC高位
-  pData[Resume + 1] = (unsigned char)(CRC16 & 0xff);//CRC低位
+  if(CrcAnti){//反了
+    pData[Resume + 1] = (unsigned char)(CRC16 >> 8);//CRC高位
+    pData[Resume] = (unsigned char)(CRC16 & 0xff);//CRC低位
+  }
+  else{//没反
+    pData[Resume] = (unsigned char)(CRC16 >> 8);//CRC高位
+    pData[Resume + 1] = (unsigned char)(CRC16 & 0xff);//CRC低位
+  }
   return Resume + 2; //返回需发送的数据个数CRC16占2位
 }
 

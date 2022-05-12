@@ -21,19 +21,10 @@
 //主结构
 struct _BusSlvUsart{
   struct _BusBase Base;                     //从机基类
-
   //收发缓冲区，返回需要接收数据的最大长度。
   unsigned char DataBuf[BUS_SLV_USART_DATA_SIZE]; 
-
-  unsigned char Count;   //数据收发定时器装载值
-  unsigned char Index;   //Rtu模数数据收发定时器
-  
-  unsigned char Flag;//相关标志,见定义
 };
 
-//相关标志定义为:
-#define BUS_SLV_USART_RCV_DOING    0x01 //数据接收过程中标志
-#define BUS_SLV_USART_SEND_DOING   0x02 //数据发送过程中标志
 
 /*****************************************************************************
                              相关函数

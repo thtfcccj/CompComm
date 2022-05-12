@@ -22,8 +22,8 @@ signed short ModbusCodec_Slv(unsigned char  *pData, //收到的数据
 ******************************************************************************/   
      
 //-------------------------作为从机时编码函数--------------------------------
-//由应用层实现
-signed short ModbusCodec_cbEncoder(const unsigned char  *pData,//功能码开始
+//返回-1表示错误;  0:数据正确，但不返回数据, 其它:返回数据个数(含地址)
+signed short ModbusCodec_cbEncoder(unsigned char  *pData,//功能码开始
                                     unsigned short RcvData);//接收数据长度
 
 #endif

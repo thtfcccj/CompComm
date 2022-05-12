@@ -13,7 +13,6 @@
 #include "struct.h"
 #include <string.h>
 
-
 //---------------------------内部定义--------------------------
 //启用基类预留变量;
 #define STATE     Base.ExU8           //标志,具体定义为：
@@ -43,7 +42,7 @@ void BusSlvUsart_Init(struct _BusSlvUsart *pBus,
 static signed char _RcvFinal(void *pv)
 {
   struct _UsartDev *pUsart = (struct _UsartDev *)pv;
-  struct _BusSlvUsart *pBus = struct_get(pUsart->pSendBuf, 
+  struct _BusSlvUsart *pBus = struct_get(pUsart->pRcvBuf, 
                                          struct _BusSlvUsart, DataBuf);
   pBus->STATE = _RCV_DOING;//取消等待中
   pBus->TIMER = pBus->TIMER_OV; //有响应，定时器复位
@@ -79,27 +78,21 @@ static signed char _SendFinal(void *pv)
 void BusSlvUsart_TickTask(struct _BusSlvUsart *pBus)
 {
   if(pBus->TIMER) return;//时间未到
-  if(pBus->STATE & _RCV_WAIT) return;//接收等待中
   
   unsigned char UsartId = BusId_GetSubId(pBus->Base.Id);
   struct _UsartDev *pUsart = Usart_GetDev(UsartId);
   
-  //空闲状态启动接收
-  if(pBus->STATE == 0){
-    pBus->STATE = _RCV_WAIT; //接收等待    
-    BusId_CtrlUsartRTS(pBus->Base.Id, 0); //接收状态
-    UsartDev_RcvStart(pUsart, 
-                      pBus->DataBuf, BUS_SLV_USART_DATA_SIZE, _RcvFinal);
-    pBus->TIMER_OV = UsartDevCfg[UsartId].U.S.SpaceT; //预读
-    pBus->TIMER = 0;//等待中
-    return;
+  //接收等待中超时
+  if(pBus->STATE & _RCV_WAIT){
+    UsartDev_RcvStop(pUsart); //强制中止接收
+    pBus->STATE = 0;
   }
   //数据接收完成
-  if(pBus->STATE & _RCV_DOING){
+  else if(pBus->STATE & _RCV_DOING){
     pBus->Base.Count.Comm++;//接收数据计数
 
     UsartDev_RcvStop(pUsart); //强制中止接收
-    pBus->STATE &= ~_RCV_DOING;//停止数据接收
+    pBus->STATE = 0;//停止数据接收
     
     signed short Resume = BusSlvUsart_cbDataPro(pBus, //数据处理
                             pUsart->RcvLen,
@@ -116,9 +109,22 @@ void BusSlvUsart_TickTask(struct _BusSlvUsart *pBus)
      else if(Resume < 0) pBus->Base.Count.Invalid++;//无效计数
      //else // if(Resume == 0) 广播不计数
   }
-  else{//发送超时完成了
+  //发送超时完成了
+  else if(pBus->STATE){
     UsartDev_SendStop(pUsart); 
     pBus->STATE = 0;//空闲状态
   }
+  //最后空闲状态启动接收
+  if(pBus->STATE == 0){
+    pBus->STATE = _RCV_WAIT; //接收等待    
+    BusId_CtrlUsartRTS(pBus->Base.Id, 0); //接收状态
+    UsartDev_RcvStart(pUsart, 
+                      pBus->DataBuf, BUS_SLV_USART_DATA_SIZE, _RcvFinal);
+    pBus->TIMER_OV = UsartDevCfg[UsartId].U.S.SpaceT; //预读
+    pBus->TIMER = 255;//等待中,置最长时间防止死机
+    return;
+  } 
+  
+  
 }
 
