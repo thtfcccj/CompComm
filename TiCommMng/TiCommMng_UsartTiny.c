@@ -47,7 +47,8 @@ void TiCommMng_Task(void)
     
     return;
   }
-  if(TiCommMng.Index) return;//时间未到或在接收等待中  
+  if(TiCommMng.Index) return;//时间未到或在接收等待中
+  
   //没在发送或接收等待过程中
   if(!(TiCommMng.Flag & (TI_COMM_MNG_RCV_DOING | 
                           TI_COMM_MNG_SEND_DOING))){
@@ -95,6 +96,14 @@ void TiCommMng_Task(void)
   // ━┛┃  ┃  ┃  ┃  ┃  ┃  ┃  ┃  ┃  ┃━━━
   //     ┗━┛  ┗━┛  ┗━┛  ┗━┛  ┗━┛
   //波特率为9600时，周期为200uS,即对应1bit为100uS
+}
+
+//-------------------------接收定时器复位函数-------------------------------
+void TiCommMng_ResetRcvTimer(void)
+{
+  TiCommMng.Flag |= TI_COMM_MNG_RCV_DOING;  
+  if(!TiCommMng_cbRcvedNotify()) TiCommMng.Index = TiCommMng.Count;
+  else TiCommMng.Index = 0;//数据收完，结束了
 }
 
 /******************************************************************************

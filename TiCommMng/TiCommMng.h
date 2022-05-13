@@ -51,9 +51,7 @@ void TiCommMng_IntTask(void);
 void TiCommMng_Task(void);
 
 //-------------------------接收定时器复位函数-------------------------------
-#define TiCommMng_ResetRcvTimer() \
-  do{TiCommMng.Index = TiCommMng.Count;\
-     TiCommMng.Flag |= TI_COMM_MNG_RCV_DOING;}while(0)
+void TiCommMng_ResetRcvTimer(void);
 
 //-------------------------发送定时器复位函数-------------------------------
 #define TiCommMng_ResetSendTimer() \
@@ -90,6 +88,10 @@ unsigned char TiCommMng_cbBuadId2FremeOv(void);
 #ifdef SUPPORT_TI_COMM_MNG_PRE 
   unsigned char  TiCommMng_cbRcvPreDataPro(void);
 #endif
+     
+//--------------------------收到每个数据后的通报-------------------------------
+//返回非0时，数据主动结束，否则继续收数
+unsigned char TiCommMng_cbRcvedNotify(void);     
 
 //--------------------------数据处理函数-------------------------------
 //接收完数据后将调用此函数
