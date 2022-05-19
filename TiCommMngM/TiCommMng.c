@@ -104,6 +104,15 @@ void TiCommMng_Task(struct _TiCommMng *pMng)
   }
 }
 
+//-------------------------接收定时器复位函数-------------------------------
+void TiCommMng_ResetRcvTimer(struct _TiCommMng *pMng)
+{
+  pMng->Flag |= TI_COMM_MNG_RCV_DOING;
+  if(!TiCommMng_cbRcvedNotify(pMng)) pMng->Index = pMng->Count;
+  else pMng->Index = 0;//数据收完，结束了
+}
+
+
 /******************************************************************************
 		                      支持预处理时相关
 ******************************************************************************/ 
