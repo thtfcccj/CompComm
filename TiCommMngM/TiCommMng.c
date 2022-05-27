@@ -26,9 +26,9 @@ void TiCommMng_Init(struct _TiCommMng *pMng,
                     struct _UsartDev *pDev)
 {
   memset(pMng, 0, sizeof(struct _TiCommMng));
-  pMng->Count = TiCommMng_cbBuadId2FremeOv(pMng);
-  UsartTiny_Init(&pMng->UsartTiny, pFun, pDev);//初始化底层通讯
-  //后应紧跟配置底层硬件
+  UsartTiny_Init(&pMng->UsartTiny, pFun, pDev);//初始化底层通讯  
+  //最后装载超时值
+  pMng->Count = TiCommMng_cbBuadId2FremeOv(pMng); 
 }
 
 //-------------------------------中断任务----------------------------
