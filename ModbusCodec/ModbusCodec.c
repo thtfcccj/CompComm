@@ -30,7 +30,7 @@ signed short ModbusCodec_Slv(unsigned char  *pData, //收到的数据
   unsigned char CurAdr =  pData[0];
   //地址错误,255为P2P地址,用于重设通讯址与波特率等
   if((CurAdr != 0) && (CurAdr != SlvAdr) && (CurAdr != 255))
-    return (unsigned char)-1;    
+    return -1;    
 
   RcvLen -= 2;//去除CRC域
   unsigned short CRC16 = ModbusRtuMng_GetCRC16(pData, RcvLen);
@@ -39,7 +39,7 @@ signed short ModbusCodec_Slv(unsigned char  *pData, //收到的数据
     CrcAnti = 0;
   else if(CRC16 == (((unsigned short)pData[RcvLen + 1] << 8) | pData[RcvLen]))
     CrcAnti = 1; //反了
-  else return (unsigned char)-1;   //CRC数据校验码错误
+  else return -1;   //CRC数据校验码错误
 
   //应用层编码(去地址传入)
   signed short Resume = ModbusCodec_cbEncoder(pData + 1, RcvLen - 1);
