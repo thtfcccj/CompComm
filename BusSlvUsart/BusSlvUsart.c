@@ -5,11 +5,6 @@
 ***************************************************************************/
 
 #include "BusSlvUsart.h"
-#include "BusId.h"
-#include "Usart.h"      //通讯
-//通讯配置结构需扩展 #define USART_DEV_CFG_USER UsartDevCfgUser0_t U;
-#include "UsartDevCfg.h" 
-
 #include "struct.h"
 #include <string.h>
 
@@ -79,8 +74,7 @@ void BusSlvUsart_TickTask(struct _BusSlvUsart *pBus)
 {
   if(pBus->TIMER) return;//时间未到
   
-  unsigned char UsartId = BusId_GetSubId(pBus->Base.Id);
-  struct _UsartDev *pUsart = Usart_GetDev(UsartId);
+  struct _UsartDev *pUsart = BusSlvUsart_cbGetDev(pBus->Base.Id);
   
   //接收等待中超时
   if(pBus->STATE & _RCV_WAIT){
@@ -96,10 +90,10 @@ void BusSlvUsart_TickTask(struct _BusSlvUsart *pBus)
     
     signed short Resume = BusSlvUsart_cbDataPro(pBus, //数据处理
                             pUsart->RcvLen,
-                            UsartDevCfg[UsartId].U.S.Adr);
+                            BusSlvUsart_cbGetAdr(pBus->Base.Id));
     if(Resume > 0){ //数据正确,发送数据
        pBus->Base.Count.Valid++; //有效计数
-       BusId_CtrlUsartRTS(pBus->Base.Id, 1); //发送状态
+       BusSlvUsart_cbRTS(pBus->Base.Id, 1); //发送状态
        UsartDev_SendStart(pUsart,
                           pBus->DataBuf, Resume, _SendFinal);
        
@@ -117,14 +111,12 @@ void BusSlvUsart_TickTask(struct _BusSlvUsart *pBus)
   //最后空闲状态启动接收
   if(pBus->STATE == 0){
     pBus->STATE = _RCV_WAIT; //接收等待    
-    BusId_CtrlUsartRTS(pBus->Base.Id, 0); //接收状态
+    BusSlvUsart_cbRTS(pBus->Base.Id, 0); //接收状态
     UsartDev_RcvStart(pUsart, 
                       pBus->DataBuf, BUS_SLV_USART_DATA_SIZE, _RcvFinal);
-    pBus->TIMER_OV = UsartDevCfg[UsartId].U.S.SpaceT; //预读
+    pBus->TIMER_OV = BusSlvUsart_cbGetSpaceT(pBus->Base.Id);
     pBus->TIMER = 255;//等待中,置最长时间防止死机
     return;
   } 
-  
-  
 }
 

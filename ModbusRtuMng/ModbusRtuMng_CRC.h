@@ -6,6 +6,13 @@
 #ifndef __MODBUS_RTU_MNG_CRC_H
 #define __MODBUS_RTU_MNG_CRC_H
 
+#ifdef SUPPORT_EX_PREINCLUDE//不支持Preinlude時
+  #include "Preinclude.h"
+#endif
+
+
+//全局里可配置：ModbusCRC16校验高位使用压缩方式(空间换时间少204Byte)
+//#define MODBUS_CRC16_H_ZIP
 
 //-----------------------得到CRC16（循环冗长检测）函数-------------------
 //返回得到的CRC16数据
